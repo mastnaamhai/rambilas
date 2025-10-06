@@ -21,6 +21,15 @@ router.post('/login', async (req, res) => {
     // Hash the provided password
     const hashedPassword = await hashPassword(password);
     
+    // Debug logging
+    console.log('Login attempt:', {
+      providedPassword: password,
+      hashedPassword: hashedPassword,
+      expectedHash: APP_PASSWORD_HASH,
+      hashMatch: hashedPassword === APP_PASSWORD_HASH,
+      envVar: process.env.APP_PASSWORD_HASH
+    });
+    
     // For now, we'll use a simple password check
     // In production, you should store this in a database
     if (hashedPassword === APP_PASSWORD_HASH) {
@@ -31,7 +40,14 @@ router.post('/login', async (req, res) => {
         message: 'Login successful' 
       });
     } else {
-      res.status(401).json({ message: 'Invalid password' });
+      res.status(401).json({ 
+        message: 'Invalid password',
+        debug: {
+          providedHash: hashedPassword,
+          expectedHash: APP_PASSWORD_HASH,
+          envVar: process.env.APP_PASSWORD_HASH
+        }
+      });
     }
   } catch (error) {
     console.error('Login error:', error);
