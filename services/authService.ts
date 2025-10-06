@@ -22,7 +22,7 @@ export const hashPassword = async (password: string): Promise<string> => {
  */
 export const login = async (password: string): Promise<{ success: boolean; token?: string; message: string }> => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/auth/login`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
