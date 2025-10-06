@@ -33,7 +33,7 @@ app.use(cors(corsOptions));
 
 
 // Serve static files from the React app build directory
-const frontendPath = path.join(__dirname, '../../frontend/dist');
+const frontendPath = path.join(__dirname, '../../dist');
 app.use(express.static(frontendPath));
 
 // Use Routes
