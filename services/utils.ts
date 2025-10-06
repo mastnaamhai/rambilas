@@ -66,9 +66,9 @@ export const getCurrentDate = () => {
 // The API key should be configured in the environment variables
 const GSTIN_API_KEY = (() => {
     const envKey = import.meta.env.VITE_GSTIN_API_KEY;
-    // If the environment key is too short (truncated) or contains the variable name, use fallback
+    // If the environment key is not available, use the new production key
     if (!envKey || envKey.length < 32 || envKey.includes('$VITE_GSTIN_API_KEY')) {
-        return 'f7491e49e622cbbb8189f5f2de661fb6';
+        return 'c1cc01d4e40144bf607b6a4fe5be83c6';
     }
     return envKey;
 })();
@@ -104,12 +104,10 @@ export const fetchGstDetails = async (gstin: string): Promise<Omit<Customer, 'id
         throw new Error('Please enter a valid 15-digit GSTIN.');
     }
 
-    // Use proxy in development mode to avoid CORS issues
-    const isDevelopment = import.meta.env.DEV;
-    const baseUrl = isDevelopment ? '/gst-api' : 'https://sheet.gstincheck.co.in';
+    // Production API call
+    const baseUrl = 'https://sheet.gstincheck.co.in';
     const apiUrl = `${baseUrl}/check/${GSTIN_API_KEY}/${gstin}`;
     console.log(`API URL: ${apiUrl}`);
-    console.log(`Development mode: ${isDevelopment}`);
 
     try {
         const response = await fetch(apiUrl, {

@@ -25,5 +25,5 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 };
 
 export const generateToken = (payload: any): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, JWT_SECRET);
 };

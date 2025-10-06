@@ -44,16 +44,10 @@ export const config: EnvironmentConfig = {
   
   // Server
   port: parseInt(process.env.PORT || '8080', 10),
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv: process.env.NODE_ENV || 'production',
   
-  // CORS
-  corsOrigin: process.env.CORS_ORIGIN ? 
-    (process.env.CORS_ORIGIN.includes(',') ? 
-      process.env.CORS_ORIGIN.split(',').map(origin => origin.trim()) : 
-      process.env.CORS_ORIGIN) : 
-    (process.env.NODE_ENV === 'production' ? 
-      ['https://your-frontend-domain.com'] : 
-      ['http://localhost:5173']),
+  // CORS - Production only
+  corsOrigin: process.env.CORS_ORIGIN || '*',
   
   // JWT
   jwtSecret: process.env.JWT_SECRET!,

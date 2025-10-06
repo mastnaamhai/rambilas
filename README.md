@@ -112,41 +112,19 @@ transpotruck/
    - Backend API: http://localhost:8080 (development only)
    - Health Check: http://localhost:8080/health (development only)
 
-## 🚀 Production Deployment
+## 🚀 Deployment
 
-### Using Render + Netlify (Recommended)
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for simple deployment instructions.
 
-1. **Deploy Backend to Render**
-   - Go to [Render Dashboard](https://dashboard.render.com)
-   - Create new Web Service
-   - Connect GitHub repository
-   - Set Root Directory: `backend`
-   - Add environment variables
+### Required Environment Variables
 
-2. **Deploy Frontend to Netlify**
-   - Go to [Netlify Dashboard](https://app.netlify.com)
-   - Create new site from Git
-   - Connect GitHub repository
-   - Set Build Command: `npm run build`
-   - Set Publish Directory: `dist`
-
-### Environment Variables
-
-Set these in Render and Netlify:
-
-**Backend (Render):**
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `MONGODB_URI` | MongoDB connection string | ✅ |
-| `JWT_SECRET` | JWT signing secret | ✅ |
-| `CORS_ORIGIN` | Allowed CORS origins | ✅ |
-| `PORT` | Server port | ✅ |
-
-**Frontend (Netlify):**
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `VITE_API_URL` | Backend API URL | ✅ |
-| `VITE_GSTIN_API_KEY` | GSTIN validation API key | ✅ |
+| `JWT_SECRET` | JWT signing secret (32+ chars) | ✅ |
+| `CORS_ORIGIN` | Allowed origins (* for any) | ✅ |
+| `VITE_GSTIN_API_KEY` | GST API key | ✅ |
+| `APP_PASSWORD_HASH` | App access password hash | ✅ |
 
 ## 🔧 Configuration
 

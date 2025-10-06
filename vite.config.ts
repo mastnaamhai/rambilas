@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
     return {
       plugins: [react()],
       define: {
-        'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || 'https://your-backend-domain.com')
+        'process.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL || '/api')
       },
       resolve: {
         alias: {
@@ -36,26 +36,7 @@ export default defineConfig(({ mode }) => {
       },
       server: {
         port: 5173,
-        host: true,
-        proxy: {
-          '/api': {
-            target: 'http://127.0.0.1:8080',
-            changeOrigin: true,
-            secure: false
-          },
-          // Add proxy for GST API to handle CORS issues
-          '/gst-api': {
-            target: 'https://sheet.gstincheck.co.in',
-            changeOrigin: true,
-            secure: true,
-            rewrite: (path) => path.replace(/^\/gst-api/, ''),
-            configure: (proxy, options) => {
-              proxy.on('proxyReq', (proxyReq, req, res) => {
-                console.log('Proxying GST API request:', req.url);
-              });
-            }
-          }
-        }
+        host: true
       }
     };
 });
