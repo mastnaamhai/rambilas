@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  VITE_API_URL = "https://rambilas-backend.onrender.com/api"
+  VITE_GSTIN_API_KEY = "c1cc01d4e40144bf607b6a4fe5be83c6"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
