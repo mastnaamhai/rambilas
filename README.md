@@ -1,6 +1,16 @@
-# TranspoTruck - Logistics Management System
+# TranspoTruck - Standalone Logistics Management System
 
-A comprehensive, production-ready logistics management application for creating and managing Lorry Receipts (LRs), Invoices, and Truck Hiring Notes with full lifecycle tracking and PDF generation capabilities.
+A comprehensive, production-ready **standalone** logistics management application for creating and managing Lorry Receipts (LRs), Invoices, and Truck Hiring Notes with full lifecycle tracking and PDF generation capabilities.
+
+> **Standalone Application**: This is a self-contained application with no external repository dependencies or remote connections.
+
+## 📦 Standalone Benefits
+
+- **No Git Dependencies**: Completely independent of any external repositories
+- **Self-Contained**: All code and configuration in one place
+- **Easy Deployment**: Can be deployed anywhere without external references
+- **Clean History**: Fresh Git history with no remote connections
+- **Portable**: Can be moved, copied, or shared without breaking references
 
 ## 🚀 Features
 
@@ -65,17 +75,20 @@ transpotruck/
 ### Prerequisites
 
 - **Node.js 18+**
-- **MongoDB Atlas** account
-- **Google Cloud Platform** account
-- **Docker** (for containerization)
+- **MongoDB Atlas** account (or local MongoDB)
+- **Docker** (optional, for containerization)
 
 ### Local Development
 
-1. **Clone and Install**
+1. **Setup and Install**
    ```bash
-   git clone <repository-url>
-   cd transpotruck
+   # Navigate to the application directory
+   cd /path/to/rambilas
+   
+   # Install frontend dependencies
    npm install
+   
+   # Install backend dependencies
    cd backend && npm install
    ```
 
