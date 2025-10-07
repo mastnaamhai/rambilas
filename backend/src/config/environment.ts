@@ -47,7 +47,7 @@ export const config: EnvironmentConfig = {
   nodeEnv: process.env.NODE_ENV || 'production',
   
   // CORS - Production only
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  corsOrigin: process.env.CORS_ORIGIN || 'https://ttruck.netlify.app',
   
   // JWT
   jwtSecret: process.env.JWT_SECRET!,

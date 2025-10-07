@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import connectDB from './config/database';
 import config from './config/environment';
@@ -24,12 +23,43 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS configuration
-const corsOptions = {
-  origin: config.corsOrigin,
-  optionsSuccessStatus: 200,
-  credentials: true
-};
-app.use(cors(corsOptions));
+console.log('CORS Origin configured as:', config.corsOrigin);
+
+// Manual CORS middleware
+app.use((req, res, next) => {
+  console.log('=== CORS Middleware Called ===');
+  console.log('Method:', req.method);
+  console.log('Path:', req.path);
+  console.log('Headers:', req.headers);
+  
+  const origin = req.headers.origin;
+  console.log('Request from origin:', origin);
+  console.log('Expected origin:', config.corsOrigin);
+  
+  if (origin === config.corsOrigin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    console.log('Origin allowed:', origin);
+  } else if (!origin) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log('No origin, allowing all');
+  } else {
+    console.log('Origin rejected:', origin);
+    return res.status(403).json({ error: 'Not allowed by CORS' });
+  }
+  
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request, returning 200');
+    return res.status(200).end();
+  }
+  
+  console.log('CORS middleware completed, calling next()');
+  next();
+});
 
 
 // Serve static files from the React app build directory
