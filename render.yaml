@@ -11,7 +11,7 @@ services:
       - key: JWT_SECRET
         value: TMS_APP_JWT_SECRET_KEY_2024_ALL_INDIA_LOGISTICS_CHENNAI_SECURE_KEY_123456789
       - key: CORS_ORIGIN
-        value: "*"
+        value: "https://ttruck.netlify.app"
       - key: NODE_ENV
         value: production
       - key: PORT
