@@ -4,17 +4,19 @@ services:
     env: node
     plan: free
     buildCommand: cd backend && npm install && npm run build
-    startCommand: cd backend && npm start
+    startCommand: cd backend && node dist/index.js
     envVars:
       - key: MONGODB_URI
         value: mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
       - key: JWT_SECRET
         value: TMS_APP_JWT_SECRET_KEY_2024_ALL_INDIA_LOGISTICS_CHENNAI_SECURE_KEY_123456789
       - key: CORS_ORIGIN
-        value: "https://ttruck.netlify.app"
+        value: "*"
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 8080
       - key: APP_PASSWORD_HASH
         value: 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
+      - key: VITE_GSTIN_API_KEY
+        value: c1cc01d4e40144bf607b6a4fe5be83c6
