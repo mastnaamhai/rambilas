@@ -5,7 +5,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: npm install && npm run build
-    startCommand: node dist/index.js
+    startCommand: npm start
     envVars:
       - key: MONGODB_URI
         value: mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
