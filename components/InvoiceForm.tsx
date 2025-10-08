@@ -5,12 +5,18 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Textarea } from './ui/Textarea';
+import { ValidatedInput } from './ui/ValidatedInput';
+import { ValidatedSelect } from './ui/ValidatedSelect';
+import { ValidatedAutocompleteSelect } from './ui/ValidatedAutocompleteSelect';
+import { ValidatedTextarea } from './ui/ValidatedTextarea';
 import { LrFilterPanel } from './ui/LrFilterPanel';
 import { LrPreviewCard } from './ui/LrPreviewCard';
 import { CustomerCreationModal } from './ui/CustomerCreationModal';
-import { validateForm, commonRules } from '../services/formValidation';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { fieldRules, commonRules } from '../services/formValidation';
 import { numberToWords, getCurrentDate } from '../services/utils';
 import { getUnbilledLorryReceipts, type UnbilledLrFilters } from '../services/lorryReceiptService';
+import { simpleNumberingService } from '../services/simpleNumberingService';
 
 interface InvoiceFormProps {
   onSave: (invoice: Partial<Invoice>) => void;
@@ -67,16 +73,88 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         }
     );
 
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isSaving, setIsSaving] = useState(false);
     const [allowCustomInvoiceNumber, setAllowCustomInvoiceNumber] = useState(false);
     const [customInvoiceNumber, setCustomInvoiceNumber] = useState('');
+    const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [isLoadingInvoiceNumber, setIsLoadingInvoiceNumber] = useState(false);
     const [unbilledLrs, setUnbilledLrs] = useState<LorryReceipt[]>([]);
     const [isLoadingUnbilledLrs, setIsLoadingUnbilledLrs] = useState(false);
     const [enableMultipleSelection, setEnableMultipleSelection] = useState(false);
     const [lrFilters, setLrFilters] = useState<UnbilledLrFilters>({});
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+    // Validation rules for invoice form
+    const validationRules = {
+        // Use anyDate when custom invoice number is enabled to allow past dates for custom entries
+        date: allowCustomInvoiceNumber ? fieldRules.anyDate : fieldRules.date,
+        customerId: { required: true, message: 'Please select a customer' },
+        'lorryReceipts': {
+            custom: (value: LorryReceipt[]) => {
+                if (!value || value.length === 0) {
+                    return 'At least one lorry receipt must be selected';
+                }
+                return null;
+            }
+        },
+        cgstRate: fieldRules.gstRate,
+        sgstRate: fieldRules.gstRate,
+        igstRate: fieldRules.gstRate,
+        cgstAmount: {
+            custom: (value: number) => {
+                // If RCM is enabled, allow 0 amount
+                if (invoice.isRcm) return null;
+                // If GST type is IGST, allow 0 amount for CGST
+                if (invoice.gstType === GstType.IGST) return null;
+                // Otherwise, validate as normal amount
+                return value <= 0 ? 'Amount must be greater than 0' : null;
+            }
+        },
+        sgstAmount: {
+            custom: (value: number) => {
+                // If RCM is enabled, allow 0 amount
+                if (invoice.isRcm) return null;
+                // If GST type is IGST, allow 0 amount for SGST
+                if (invoice.gstType === GstType.IGST) return null;
+                // Otherwise, validate as normal amount
+                return value <= 0 ? 'Amount must be greater than 0' : null;
+            }
+        },
+        igstAmount: {
+            custom: (value: number) => {
+                // If RCM is enabled, allow 0 amount
+                if (invoice.isRcm) return null;
+                // If GST type is CGST_SGST, allow 0 amount for IGST
+                if (invoice.gstType === GstType.CGST_SGST) return null;
+                // Otherwise, validate as normal amount
+                return value <= 0 ? 'Amount must be greater than 0' : null;
+            }
+        },
+        remarks: fieldRules.remarks,
+        customInvoiceNumber: {
+            custom: (value: string) => {
+                if (!allowCustomInvoiceNumber || !value) return null;
+                if (value.length < 3) return 'Invoice number must be at least 3 characters';
+                return null;
+            }
+        }
+    };
+
+    // Form validation hook
+    const {
+        errors,
+        isValid,
+        validateForm: validateEntireForm,
+        setFieldError,
+        clearFieldError,
+        setErrors
+    } = useFormValidation({
+        validationRules,
+        validateOnChange: true,
+        validateOnBlur: true,
+        validateOnSubmit: true
+    });
 
     // Calculate totals
     const calculateTotals = useCallback(() => {
@@ -161,31 +239,23 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         }
     }, [enableMultipleSelection, unbilledLrs, invoice.customerId]);
 
-    // Validation rules
-    const validationRules = {
-        date: commonRules.required,
-        customerId: commonRules.required,
-        'lorryReceipts': {
-            custom: (value: LorryReceipt[]) => {
-                if (!value || value.length === 0) {
-                    return 'At least one lorry receipt must be selected';
-                }
-                return null;
-            }
-        }
-    };
-
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
         
         // Clear error for this field
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
+        clearFieldError(name);
 
         setInvoice(prev => ({
             ...prev,
             [name]: type === 'number' ? parseFloat(value) || 0 : value,
+        }));
+    };
+
+    const handleValueChange = (fieldName: string, value: any) => {
+        clearFieldError(fieldName);
+        setInvoice(prev => ({
+            ...prev,
+            [fieldName]: value,
         }));
     };
 
@@ -314,10 +384,40 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         }
     }, [preselectedLr, invoice.customerId]);
 
+    // Load invoice numbering configuration for display purposes only
+    useEffect(() => {
+        const loadInvoiceNumber = async () => {
+            if (!existingInvoice) {
+                try {
+                    setIsLoadingInvoiceNumber(true);
+                    await simpleNumberingService.initialize();
+                    // Get the next number without actually consuming it
+                    const config = simpleNumberingService.getConfig('invoice');
+                    if (config) {
+                        const formattedNumber = simpleNumberingService.formatNumber('invoice', config.currentNumber);
+                        setInvoiceNumber(formattedNumber);
+                    } else {
+                        setInvoiceNumber('INV-1001'); // Default fallback
+                    }
+                } catch (error) {
+                    console.error('Failed to load invoice numbering:', error);
+                    setInvoiceNumber('INV-1001'); // Better fallback
+                } finally {
+                    setIsLoadingInvoiceNumber(false);
+                }
+            }
+        };
+        loadInvoiceNumber();
+    }, [existingInvoice]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('=== INVOICE FORM SUBMIT START ===');
+        console.log('Form data:', invoice);
         
-        const formErrors = validateForm(invoice, validationRules);
+        // Validate entire form
+        const formErrors = validateEntireForm(invoice);
+        console.log('Validation errors:', formErrors);
         
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
@@ -328,9 +428,38 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             return;
         }
 
+        console.log('Validation passed, proceeding with save...');
         setIsSaving(true);
         try {
-            onSave(invoice);
+            // Handle custom invoice number
+            const invoiceData = { ...invoice };
+            if (allowCustomInvoiceNumber && customInvoiceNumber) {
+                // Validate custom invoice number
+                try {
+                    // Extract number from formatted string (remove prefix)
+                    const config = simpleNumberingService.getConfig('invoice');
+                    const numberPart = customInvoiceNumber.replace(config?.prefix || 'INV', '');
+                    const number = parseInt(numberPart, 10);
+                    
+                    if (isNaN(number)) {
+                        setFieldError('customInvoiceNumber', 'Please enter a valid number');
+                        return;
+                    }
+                    const validation = await simpleNumberingService.validateManualNumber('invoice', number);
+                    if (!validation.valid) {
+                        setFieldError('customInvoiceNumber', validation.message || 'Invalid invoice number');
+                        return;
+                    }
+                    invoiceData.invoiceNumber = number;
+                } catch (error) {
+                    setFieldError('customInvoiceNumber', 'Failed to validate invoice number');
+                    return;
+                }
+            }
+            
+            console.log('Sending invoice data to onSave:', invoiceData);
+            onSave(invoiceData);
+            console.log('Invoice save call completed');
         } catch (error) {
             console.error('Failed to save invoice', error);
         } finally {
@@ -378,8 +507,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }, [unbilledLrs, preselectedLr, invoice.lorryReceipts, selectedCustomer, availableLrs]);
 
     return (
-        <div className="fixed inset-0 bg-gray-100 z-50 flex justify-center items-start p-4 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-gray-100 z-50 flex justify-center items-start p-4 overflow-y-auto" data-form-modal="true">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-7xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <div className="p-4 sm:p-6">
                         {/* Header */}
@@ -405,31 +534,30 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                     + Add New
                                                 </Button>
                                             </div>
-                                            <Select 
-                                                name="customerId" 
-                                                value={invoice.customerId || ''} 
-                                                onChange={handleChange} 
-                                                required 
-                                                error={errors.customerId}
-                                            >
-                                                <option value="">Select Customer</option>
-                                                {customers.map(customer => (
-                                                    <option key={customer._id} value={customer._id}>
-                                                        {customer.name} {customer.gstin ? `(${customer.gstin})` : ''}
-                                                    </option>
-                                                ))}
-                                            </Select>
+                                            <ValidatedAutocompleteSelect
+                                                fieldName="customerId"
+                                                validationRules={validationRules}
+                                                value={invoice.customerId || ''}
+                                                onValueChange={(value) => handleValueChange('customerId', value)}
+                                                customers={customers}
+                                                label="Customer"
+                                                placeholder="Type to search customers..."
+                                                required
+                                                onSaveCustomer={onSaveCustomer}
+                                                onSelect={(customer) => {
+                                                    console.log('Customer selected:', customer);
+                                                }}
+                                            />
                                         </div>
                                         
                                         <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-gray-700">Invoice Date</label>
-                                            <Input 
-                                                name="date" 
-                                                type="date" 
-                                                value={invoice.date || ''} 
-                                                onChange={handleChange} 
-                                                required 
-                                                error={errors.date}
+                                            <ValidatedInput
+                                                fieldName="date"
+                                                validationRules={validationRules}
+                                                value={invoice.date || ''}
+                                                onValueChange={(value) => handleValueChange('date', value)}
+                                                type="date"
+                                                required
                                             />
                                         </div>
                                     </div>
@@ -437,18 +565,25 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                     <div className="space-y-3">
                                         {!allowCustomInvoiceNumber ? (
                                             <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                                                <p className="text-sm font-medium text-green-800">
-                                                    Auto-generated: INV000112
-                                                </p>
+                                                <div className="text-sm font-medium text-green-800">
+                                                    {isLoadingInvoiceNumber ? (
+                                                        <span className="flex items-center">
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                                                            Loading invoice number...
+                                                        </span>
+                                                    ) : (
+                                                        <span className="font-semibold">Invoice Number: {invoiceNumber}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : (
                                             <div className="space-y-2">
-                                                <label className="block text-sm font-medium text-gray-700">Custom Invoice Number</label>
-                                                <Input 
-                                                    name="customInvoiceNumber" 
-                                                    type="text" 
-                                                    value={customInvoiceNumber} 
-                                                    onChange={(e) => setCustomInvoiceNumber(e.target.value)}
+                                                <ValidatedInput
+                                                    fieldName="customInvoiceNumber"
+                                                    validationRules={validationRules}
+                                                    value={customInvoiceNumber}
+                                                    onValueChange={setCustomInvoiceNumber}
+                                                    type="text"
                                                     placeholder="Enter custom invoice number"
                                                 />
                                             </div>
@@ -650,47 +785,44 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                     {invoice.gstType === GstType.CGST_SGST ? (
                                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                             <div className="space-y-2">
-                                                                <label className="block text-sm font-medium text-gray-700">
-                                                                    CGST Rate (%)
-                                                                </label>
-                                                                <Input 
-                                                                    name="cgstRate" 
-                                                                    type="number" 
-                                                                    value={invoice.cgstRate || 0} 
-                                                                    onChange={handleChange} 
+                                                                <ValidatedInput
+                                                                    fieldName="cgstRate"
+                                                                    validationRules={validationRules}
+                                                                    value={invoice.cgstRate || 0}
+                                                                    onValueChange={(value) => handleValueChange('cgstRate', value)}
+                                                                    type="number"
                                                                     min="0"
                                                                     max="100"
                                                                     step="0.01"
+                                                                    label="CGST Rate (%)"
                                                                 />
                                                             </div>
                                                             <div className="space-y-2">
-                                                                <label className="block text-sm font-medium text-gray-700">
-                                                                    SGST Rate (%)
-                                                                </label>
-                                                                <Input 
-                                                                    name="sgstRate" 
-                                                                    type="number" 
-                                                                    value={invoice.sgstRate || 0} 
-                                                                    onChange={handleChange} 
+                                                                <ValidatedInput
+                                                                    fieldName="sgstRate"
+                                                                    validationRules={validationRules}
+                                                                    value={invoice.sgstRate || 0}
+                                                                    onValueChange={(value) => handleValueChange('sgstRate', value)}
+                                                                    type="number"
                                                                     min="0"
                                                                     max="100"
                                                                     step="0.01"
+                                                                    label="SGST Rate (%)"
                                                                 />
                                                             </div>
                                                         </div>
                                                     ) : (
                                                         <div className="space-y-2">
-                                                            <label className="block text-sm font-medium text-gray-700">
-                                                                IGST Rate (%)
-                                                            </label>
-                                                            <Input 
-                                                                name="igstRate" 
-                                                                type="number" 
-                                                                value={invoice.igstRate || 0} 
-                                                                onChange={handleChange} 
+                                                            <ValidatedInput
+                                                                fieldName="igstRate"
+                                                                validationRules={validationRules}
+                                                                value={invoice.igstRate || 0}
+                                                                onValueChange={(value) => handleValueChange('igstRate', value)}
+                                                                type="number"
                                                                 min="0"
                                                                 max="100"
                                                                 step="0.01"
+                                                                label="IGST Rate (%)"
                                                             />
                                                         </div>
                                                     )}
@@ -714,43 +846,40 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                 <div className="space-y-4">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         <div className="space-y-2">
-                                                            <label className="block text-sm font-medium text-gray-700">
-                                                                CGST Amount (₹)
-                                                            </label>
-                                                            <Input 
-                                                                name="cgstAmount" 
-                                                                type="number" 
-                                                                value={invoice.cgstAmount || 0} 
-                                                                onChange={handleManualGstChange} 
+                                                            <ValidatedInput
+                                                                fieldName="cgstAmount"
+                                                                validationRules={validationRules}
+                                                                value={invoice.cgstAmount || 0}
+                                                                onValueChange={(value) => handleValueChange('cgstAmount', value)}
+                                                                type="number"
                                                                 min="0"
                                                                 step="0.01"
+                                                                label="CGST Amount (₹)"
                                                             />
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <label className="block text-sm font-medium text-gray-700">
-                                                                SGST Amount (₹)
-                                                            </label>
-                                                            <Input 
-                                                                name="sgstAmount" 
-                                                                type="number" 
-                                                                value={invoice.sgstAmount || 0} 
-                                                                onChange={handleManualGstChange} 
+                                                            <ValidatedInput
+                                                                fieldName="sgstAmount"
+                                                                validationRules={validationRules}
+                                                                value={invoice.sgstAmount || 0}
+                                                                onValueChange={(value) => handleValueChange('sgstAmount', value)}
+                                                                type="number"
                                                                 min="0"
                                                                 step="0.01"
+                                                                label="SGST Amount (₹)"
                                                             />
                                                         </div>
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <label className="block text-sm font-medium text-gray-700">
-                                                            IGST Amount (₹)
-                                                        </label>
-                                                        <Input 
-                                                            name="igstAmount" 
-                                                            type="number" 
-                                                            value={invoice.igstAmount || 0} 
-                                                            onChange={handleManualGstChange} 
+                                                        <ValidatedInput
+                                                            fieldName="igstAmount"
+                                                            validationRules={validationRules}
+                                                            value={invoice.igstAmount || 0}
+                                                            onValueChange={(value) => handleValueChange('igstAmount', value)}
+                                                            type="number"
                                                             min="0"
                                                             step="0.01"
+                                                            label="IGST Amount (₹)"
                                                         />
                                                     </div>
                                                 </div>
@@ -792,11 +921,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                     <h2 className="text-lg font-semibold text-gray-800 mb-4">Additional Information</h2>
                                     
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-gray-700">Remarks</label>
-                                        <Textarea 
-                                            name="remarks" 
-                                            value={invoice.remarks || ''} 
-                                            onChange={handleChange} 
+                                        <ValidatedTextarea
+                                            fieldName="remarks"
+                                            validationRules={validationRules}
+                                            value={invoice.remarks || ''}
+                                            onValueChange={(value) => handleValueChange('remarks', value)}
                                             rows={3}
                                             placeholder="Remarks"
                                         />

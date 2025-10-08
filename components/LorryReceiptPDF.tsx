@@ -51,7 +51,7 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
     const isCopy = copyType && !copyType.includes('ORIGINAL') && copyType !== 'PREVIEW';
 
     return (
-        <div className="bg-white p-4 text-xs font-mono break-inside-avoid shadow-lg relative" style={{ width: '210mm', minHeight:'297mm', fontFamily: 'monospace', lineHeight: '1.2' }}>
+        <div className="bg-white p-2 text-xs font-sans break-inside-avoid shadow-lg relative" style={{ width: '210mm', minHeight:'297mm', fontFamily: 'Arial, sans-serif', lineHeight: '1.2' }}>
             {/* Watermark for copies */}
             {isCopy && (
                 <div className="absolute inset-0 pointer-events-none z-10">
@@ -65,7 +65,7 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
 
             <div className="border-2 border-black p-2 relative z-20">
                 {/* Header Section */}
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-4">
                     {/* Left - Logo */}
                     <div className="flex items-center">
                         <Logo
@@ -78,12 +78,12 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                     
                     {/* Center - Religious Invocations and Company Name */}
                     <div className="flex-grow text-center">
-                        <div className="mb-1">
+                        <div className="mb-2">
                             <p className="text-sm font-semibold italic">!! Jai Bajarang Bali !!</p>
                             <p className="text-sm font-semibold italic">!! Jai Dada Nath !!</p>
                         </div>
-                        <h1 className="text-4xl font-bold tracking-wider text-red-600 mb-1">{companyInfo.name}</h1>
-                        <p className="text-sm">{companyInfo.address}</p>
+                        <h1 className="text-4xl font-bold tracking-wider text-red-600 mb-2">{companyInfo.name}</h1>
+                        <p className="text-sm mb-1">{companyInfo.address}</p>
                         <p className="text-sm">E-mail: {companyInfo.email} / Web.: {companyInfo.website}</p>
                     </div>
                     
@@ -95,85 +95,77 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                 </div>
 
                 {/* Sub-Header Section - 3 Column Grid */}
-                <div className="grid grid-cols-3 gap-1 mb-1">
+                <div className="grid grid-cols-3 gap-1 mb-2">
                     {/* Left Box - Demurrage Charges */}
                     <div className="border border-black p-1">
-                        <h3 className="font-bold text-center underline text-xs">SCHEDULE OF DEMURRAGE CHARGES</h3>
-                        <p className="text-[8px] text-gray-600">Demurrage chargeable after 15 days from today @ Rs.1/- per day per Quintal on weight charged.</p>
+                        <h3 className="font-bold text-center underline text-xs mb-1">SCHEDULE OF DEMURRAGE CHARGES</h3>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-tight">
+                            {lorryReceipt.demurrageCharges || 'Demurrage after 15 days @ Rs.1/- per day per Quintal.'}
+                        </p>
                     </div>
 
-                    {/* Center Box - Copy Type and Risk Declaration */}
+                    {/* Center Box - Copy Type and Risk Bearer */}
                     <div className="border border-black p-1">
-                        <h3 className="font-bold text-center text-red-600 text-sm mb-2">CONSIGNEE COPY</h3>
-                        <div className="mb-2">
-                            <p className="text-xs font-bold">AT CARRIER'S / OWNER'S RISK</p>
-                            <p className="text-[8px] text-gray-600">(Delete Whichever is inapplicable)</p>
-                        </div>
+                        <h3 className="font-bold text-center text-red-600 text-sm mb-1">CONSIGNEE COPY</h3>
+                        
+                        {/* Risk Bearer Section */}
                         <div>
-                            <p className="text-xs font-bold">INSURANCE</p>
-                            <p className="text-[8px]">The Customer has stated that:</p>
-                            <div className="text-[8px] space-y-1">
-                                <p>□ He has not insured the Consignment</p>
-                                <p>□ He has insured the Consignment OR</p>
-                                <p>Company: _________________</p>
-                                <p>Policy No: _______________</p>
-                                <p>Date: ___________________</p>
-                                <p>Amount: _________________</p>
-                                <p>Risk: ___________________</p>
-                                <p>Invoice No.: _____________</p>
-                            </div>
+                            <h4 className="text-xs font-bold text-center underline mb-1">RISK BEARER</h4>
+                            <p className="text-xs font-bold text-center">{lorryReceipt.riskBearer || 'AT OWNER\'S RISK'}</p>
                         </div>
                     </div>
 
-                    {/* Right Box - PAN/GSTIN and Caution */}
+                    {/* Right Box - PAN/GSTIN */}
                     <div className="border border-black p-1">
-                        <div className="text-center mb-2">
-                            <p className="text-[10px]">PAN No.: {companyInfo.pan}</p>
-                            <p className="text-[10px]">GSTIN: {companyInfo.gstin}</p>
-                        </div>
-                        <div className="border border-gray-400 p-1">
-                            <h3 className="font-bold text-center underline text-xs">CAUTION</h3>
-                            <p className="text-[8px] text-gray-600">This Consignment will not be detained, diverted, re-routed or re-booked without Consignee Bank's written permission. We will be delivered at the destination.</p>
+                        <div className="text-center">
+                            <p className="text-xs mb-1">PAN No.: {companyInfo.pan}</p>
+                            <p className="text-xs">GSTIN: {companyInfo.gstin}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Information Boxes Section - 3 Column Grid */}
-                <div className="grid grid-cols-3 gap-1 mb-1">
+                <div className="grid grid-cols-3 gap-1 mb-2">
                     {/* Left Box - Notice */}
                     <div className="border border-black p-1">
-                        <h3 className="font-bold text-center underline text-xs">NOTICE</h3>
-                        <p className="text-[8px] text-gray-600">The consignments covered by this Lorry Receipt shall be stored at the destination under the control of the Transport Operator and shall be delivered to or to the order of the Consignee Bank whose name is mentioned in the Lorry Receipt. It will under no circumstances by delivered to anyone without the written authority from the Consignee Bank or its order, endorsed on the Consignee copy or on a separate letter of Authority.</p>
+                        <h3 className="font-bold text-center underline text-xs mb-1">NOTICE</h3>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-tight">
+                            {lorryReceipt.notice || 'Consignments stored at destination under Transport Operator control. Delivered only to Consignee Bank or authorized parties with written authority.'}
+                        </p>
                     </div>
 
                     {/* Center Box - Risk Declaration */}
                     <div className="border border-black p-1">
-                        <h3 className="font-bold text-center underline text-xs">RISK DECLARATION</h3>
-                        <p className="text-[8px] text-gray-600">Goods are accepted for carriage at owner's risk. Please ensure proper insurance coverage for your consignment.</p>
+                        <h3 className="font-bold text-center underline text-xs mb-1">RISK DECLARATION</h3>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-tight">
+                            {lorryReceipt.riskDeclaration || 'Goods accepted at owner\'s risk. Ensure proper insurance coverage.'}
+                        </p>
                     </div>
 
-                    {/* Right Box - Caution */}
+                    {/* Right Box - Important Notice */}
                     <div className="border border-black p-1">
-                        <h3 className="font-bold text-center underline text-xs">CAUTION</h3>
-                        <p className="text-[8px] text-gray-600">This Consignment will not be detained, diverted, re-routed or re-booked without Consignee Bank's written permission. We will be delivered at the destination.</p>
+                        <h3 className="font-bold text-center underline text-xs text-red-600 mb-1">IMPORTANT NOTICE</h3>
+                        <p className="text-xs text-gray-600 font-semibold whitespace-pre-line leading-tight">
+                            {lorryReceipt.importantNotice || 'Consignment will not be detained, diverted, or re-routed without Consignee Bank\'s written permission.'}
+                        </p>
                     </div>
                 </div>
 
                 {/* Main Body Section - 5 Column Grid (3+2 split) */}
-                <div className="grid grid-cols-5 gap-1 mb-1">
+                <div className="grid grid-cols-5 gap-1 mb-2">
                     {/* Left Side - Consignment Note and Addresses (3 columns) */}
                     <div className="col-span-3">
                         {/* Consignment Note */}
-                        <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">CONSIGNMENT NOTE</h3>
-                            <p className="text-center text-lg font-bold">No. {lorryReceipt.lrNumber}</p>
-                            <p className="text-center text-sm">Date: {formatDate(lorryReceipt.date)}</p>
+                        <div className="border border-black p-1 mb-2">
+                            <h3 className="font-bold text-center underline text-xs mb-1">CONSIGNMENT NOTE</h3>
+                            <p className="text-center text-lg font-bold mb-1">No. {lorryReceipt.lrNumber}</p>
+                            <p className="text-center text-xs">Date: {formatDate(lorryReceipt.date)}</p>
                         </div>
                         
                         {/* Consignor's Name & Address */}
-                        <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">CONSIGNOR'S NAME & ADDRESS</h3>
-                            <div className="text-[10px] space-y-1">
+                        <div className="border border-black p-1 mb-2">
+                            <h3 className="font-bold text-center underline text-xs mb-1">CONSIGNOR'S NAME & ADDRESS</h3>
+                            <div className="text-xs space-y-0.5">
                                 <p><strong>Name:</strong> {consignor?.name || 'N/A'}</p>
                                 <p><strong>Address:</strong> {consignor?.address || 'N/A'}</p>
                                 <p><strong>City:</strong> {consignor?.city || 'N/A'}</p>
@@ -186,8 +178,8 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                         
                         {/* Consignee's Name & Address */}
                         <div className="border border-black p-1">
-                            <h3 className="font-bold text-center underline text-xs">CONSIGNEE'S NAME & ADDRESS</h3>
-                            <div className="text-[10px] space-y-1">
+                            <h3 className="font-bold text-center underline text-xs mb-1">CONSIGNEE'S NAME & ADDRESS</h3>
+                            <div className="text-xs space-y-0.5">
                                 <p><strong>Name:</strong> {consignee?.name || 'N/A'}</p>
                                 <p><strong>Address:</strong> {consignee?.address || 'N/A'}</p>
                                 <p><strong>City:</strong> {consignee?.city || 'N/A'}</p>
@@ -203,49 +195,71 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                     <div className="col-span-2">
                         {/* GST Payable By */}
                         <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">GST PAYABLE BY</h3>
-                            <div className="text-[10px] space-y-1">
+                            <h3 className="font-bold text-center underline text-xs mb-1">GST PAYABLE BY</h3>
+                            <div className="text-xs space-y-0.5">
                                 <p>□ Consignor ( )</p>
                                 <p>□ Consignee ( )</p>
                                 <p>□ Transporter ( )</p>
                             </div>
                         </div>
                         
+                        
                         {/* Insurance Details */}
                         <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">INSURANCE DETAILS</h3>
-                            <div className="text-[8px] space-y-1">
-                                <p>Company: {lorryReceipt.insurance?.company || '_________________'}</p>
-                                <p>Policy No: {lorryReceipt.insurance?.policyNo || '_________________'}</p>
-                                <p>Date: {lorryReceipt.insurance?.date || '_________________'}</p>
-                                <p>Amount: {lorryReceipt.insurance?.amount || '_________________'}</p>
-                                <p>Risk: {lorryReceipt.insurance?.risk || '_________________'}</p>
-                                <p>Invoice No: {lorryReceipt.insurance?.invoiceNo || '_________________'}</p>
+                            <h3 className="font-bold text-center underline text-xs mb-1">INSURANCE</h3>
+                            <div className="text-xs space-y-0.5">
+                                <p className="mb-1 text-center">The Customer has stated that:</p>
+                                <div className="flex items-center mb-0.5">
+                                    <div className="w-2 h-2 border border-black mr-1 flex items-center justify-center">
+                                        {!lorryReceipt.insurance?.hasInsured && <div className="w-1 h-1 bg-black"></div>}
+                                    </div>
+                                    <span>He has not insured the Consignment</span>
+                                </div>
+                                <div className="flex items-center mb-1">
+                                    <div className="w-2 h-2 border border-black mr-1 flex items-center justify-center">
+                                        {lorryReceipt.insurance?.hasInsured && <div className="w-1 h-1 bg-black"></div>}
+                                    </div>
+                                    <span>He has insured the Consignment OR</span>
+                                </div>
+                                <div className="space-y-0.5">
+                                    <p>Company: {lorryReceipt.insurance?.hasInsured ? (lorryReceipt.insurance?.company || '_________________') : '_________________'}</p>
+                                    <p>Policy No: {lorryReceipt.insurance?.hasInsured ? (lorryReceipt.insurance?.policyNo || '_________________') : '_________________'}</p>
+                                    <p>Date: {lorryReceipt.insurance?.hasInsured ? (lorryReceipt.insurance?.date || '_________________') : '_________________'}</p>
+                                    <p>Amount: {lorryReceipt.insurance?.hasInsured ? `₹${lorryReceipt.insurance?.amount?.toLocaleString('en-IN') || '_________________'}` : '_________________'}</p>
+                                    {lorryReceipt.insurance?.hasInsured && lorryReceipt.insurance?.risk && (
+                                        <p>Risk: {lorryReceipt.insurance.risk}</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         
-                        {/* Seal No */}
-                        <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">SEAL NO.</h3>
-                            <p className="text-center text-sm">{lorryReceipt.sealNo || 'N/A'}</p>
+                        {/* Logistics Details - Inline Box Layout */}
+                        <div className="grid grid-cols-2 gap-1 mb-1">
+                            {/* Seal No */}
+                            <div className="border border-black p-1">
+                                <h3 className="font-bold text-center underline text-xs mb-0.5">SEAL NO.</h3>
+                                <p className="text-center text-xs">{lorryReceipt.sealNo || 'N/A'}</p>
+                            </div>
+                            
+                            {/* Vehicle No */}
+                            <div className="border border-black p-1">
+                                <h3 className="font-bold text-center underline text-xs mb-0.5">VEHICLE NO.</h3>
+                                <p className="text-center text-xs">{lorryReceipt.vehicleNumber}</p>
+                            </div>
                         </div>
                         
-                        {/* Vehicle No */}
-                        <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">VEHICLE NO.</h3>
-                            <p className="text-center text-sm">{lorryReceipt.vehicleNumber}</p>
-                        </div>
-                        
-                        {/* From */}
-                        <div className="border border-black p-1 mb-1">
-                            <h3 className="font-bold text-center underline text-xs">FROM</h3>
-                            <p className="text-center text-sm">{lorryReceipt.from}</p>
-                        </div>
-                        
-                        {/* To */}
-                        <div className="border border-black p-1">
-                            <h3 className="font-bold text-center underline text-xs">TO</h3>
-                            <p className="text-center text-sm">{lorryReceipt.to}</p>
+                        <div className="grid grid-cols-2 gap-1">
+                            {/* From */}
+                            <div className="border border-black p-1">
+                                <h3 className="font-bold text-center underline text-xs mb-0.5">FROM</h3>
+                                <p className="text-center text-xs">{lorryReceipt.from}</p>
+                            </div>
+                            
+                            {/* To */}
+                            <div className="border border-black p-1">
+                                <h3 className="font-bold text-center underline text-xs mb-0.5">TO</h3>
+                                <p className="text-center text-xs">{lorryReceipt.to}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -253,40 +267,67 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
 
 
                 {/* Packages and Charges Tables Section */}
-                <div className="grid grid-cols-12 gap-1 mb-1">
+                <div className="grid grid-cols-12 gap-1 mb-2">
                     {/* Left Side - Packages Table */}
                     <div className="col-span-8">
                         {/* Package Table Header */}
-                        <div className="grid grid-cols-6 text-center font-bold border-2 border-black bg-gray-50 h-[3.5rem]">
-                            <div className="col-span-1 border-r border-black p-2 flex items-center justify-center text-xs">No. of Pkgs.</div>
-                            <div className="col-span-1 border-r border-black p-2 flex items-center justify-center text-xs">Method of Packing</div>
-                            <div className="col-span-1 border-r border-black p-2 flex items-center justify-center text-xs">DESCRIPTION (Said to Contain)</div>
-                            <div className="col-span-1 border-r border-black p-2 flex items-center justify-center text-xs">WEIGHT</div>
-                            <div className="col-span-1 border-r border-black p-2 flex items-center justify-center text-xs">Actual</div>
-                            <div className="col-span-1 p-2 flex items-center justify-center text-xs">Charged</div>
+                        <div className="grid grid-cols-4 text-center font-bold border-2 border-black bg-gray-100 h-[3rem]">
+                            <div className="col-span-1 border-r-2 border-black p-1 flex items-center justify-center text-xs leading-tight">
+                                <div>
+                                    <div>No. of</div>
+                                    <div>Pkgs.</div>
+                                </div>
+                            </div>
+                            <div className="col-span-1 border-r-2 border-black p-1 flex items-center justify-center text-xs leading-tight">
+                                <div>
+                                    <div>Method of</div>
+                                    <div>Packing</div>
+                                </div>
+                            </div>
+                            <div className="col-span-1 border-r-2 border-black p-1 flex items-center justify-center text-xs leading-tight">
+                                <div>
+                                    <div>DESCRIPTION</div>
+                                    <div>(Said to Contain)</div>
+                                </div>
+                            </div>
+                            <div className="col-span-1 p-1">
+                                <div className="h-full flex flex-col">
+                                    <div className="h-1/2 border-b-2 border-black flex items-center justify-center text-xs font-bold">WEIGHT</div>
+                                    <div className="h-1/2 grid grid-cols-2">
+                                        <div className="border-r-2 border-black flex items-center justify-center text-xs">Actual</div>
+                                        <div className="flex items-center justify-center text-xs">Charged</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Package Table Body */}
-                        <div className="min-h-[5rem] border-l-2 border-r-2 border-b-2 border-black">
+                        <div className="min-h-[3rem] border-l-2 border-r-2 border-b-2 border-black bg-white">
                             {lorryReceipt.packages && lorryReceipt.packages.length > 0 ? (
                                 lorryReceipt.packages.map((pkg, index) => (
-                                    <div key={index} className="grid grid-cols-6 border-b border-black h-[2.5rem] items-center hover:bg-gray-50 last:border-b-0">
-                                        <div className="col-span-1 border-r border-black p-2 text-center h-full flex items-center justify-center text-xs">{pkg.count || ''}</div>
-                                        <div className="col-span-1 border-r border-black p-2 text-center h-full flex items-center justify-center text-xs">{pkg.packingMethod || ''}</div>
-                                        <div className="col-span-1 border-r border-black p-2 text-center h-full flex items-center justify-center text-xs">{pkg.description || ''}</div>
-                                        <div className="col-span-1 border-r border-black p-2 text-center h-full flex items-center justify-center text-xs"></div>
-                                        <div className="col-span-1 border-r border-black p-2 text-center h-full flex items-center justify-center text-xs">{pkg.actualWeight || ''}</div>
-                                        <div className="col-span-1 p-2 text-center h-full flex items-center justify-center text-xs">{pkg.chargedWeight || ''}</div>
+                                    <div key={index} className={`grid grid-cols-4 border-b-2 border-black h-[2rem] items-center hover:bg-gray-50 last:border-b-0 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                                        <div className="col-span-1 border-r-2 border-black p-1 text-center h-full flex items-center justify-center text-xs font-medium">{pkg.count || ''}</div>
+                                        <div className="col-span-1 border-r-2 border-black p-1 text-center h-full flex items-center justify-center text-xs font-medium">{pkg.packingMethod || ''}</div>
+                                        <div className="col-span-1 border-r-2 border-black p-1 text-center h-full flex items-center justify-center text-xs font-medium">{pkg.description || ''}</div>
+                                        <div className="col-span-1 p-1">
+                                            <div className="grid grid-cols-2 h-full">
+                                                <div className="border-r-2 border-black text-center h-full flex items-center justify-center text-xs font-medium">{pkg.actualWeight || ''}</div>
+                                                <div className="text-center h-full flex items-center justify-center text-xs font-medium">{pkg.chargedWeight || ''}</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))
                             ) : (
-                                <div className="grid grid-cols-6 h-[2.5rem] items-center">
-                                    <div className="col-span-1 border-r border-black h-full"></div>
-                                    <div className="col-span-1 border-r border-black h-full"></div>
-                                    <div className="col-span-1 border-r border-black h-full"></div>
-                                    <div className="col-span-1 border-r border-black h-full"></div>
-                                    <div className="col-span-1 border-r border-black h-full"></div>
-                                    <div className="col-span-1 h-full"></div>
+                                <div className="grid grid-cols-4 h-[2rem] items-center bg-white">
+                                    <div className="col-span-1 border-r-2 border-black h-full"></div>
+                                    <div className="col-span-1 border-r-2 border-black h-full"></div>
+                                    <div className="col-span-1 border-r-2 border-black h-full"></div>
+                                    <div className="col-span-1 p-1">
+                                        <div className="grid grid-cols-2 h-full">
+                                            <div className="border-r-2 border-black h-full"></div>
+                                            <div className="h-full"></div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -296,39 +337,30 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                     {!hideCharges && (
                         <div className="col-span-4">
                             {/* Charges Header */}
-                            <div className="grid grid-cols-4 text-center font-bold border-2 border-black bg-gray-50 h-[3.5rem]">
-                                <div className="col-span-2 border-r border-black p-2 flex items-center justify-center">RATE</div>
-                                <div className="col-span-2 p-2 text-xs flex items-center justify-center">AMOUNT TO PAY / PAID</div>
-                            </div>
-                            {/* Charges Sub Header */}
-                            <div className="grid grid-cols-4 text-center font-bold border-b border-black bg-gray-50 h-[2.5rem]">
-                                <div className="col-span-2 border-r border-black p-2 text-xs flex items-center justify-center"></div>
-                                <div className="col-span-1 border-r border-black p-2 text-xs flex items-center justify-center">Rs.</div>
-                                <div className="col-span-1 p-2 text-xs flex items-center justify-center">P.</div>
+                            <div className="grid grid-cols-3 text-center font-bold border-2 border-black bg-gray-50 h-[2.5rem]">
+                                <div className="col-span-2 border-r border-black p-1 flex items-center justify-center text-xs">RATE</div>
+                                <div className="col-span-1 p-1 text-xs flex items-center justify-center">Amount To Pay</div>
                             </div>
                             {/* Charges Body */}
-                            <div className="min-h-[5rem] border-l-2 border-r-2 border-b-2 border-black">
+                            <div className="min-h-[3rem] border-l-2 border-r-2 border-b-2 border-black">
                                 {charges.filter(charge => charge.value > 0).map(charge => (
-                                    <div key={charge.label} className="grid grid-cols-4 border-b border-black h-[2.5rem] items-center hover:bg-gray-50 last:border-b-0">
-                                        <div className="col-span-2 border-r border-black pl-2 h-full flex items-center text-xs">{charge.label}</div>
-                                        <div className="col-span-1 border-r border-black pr-2 text-right h-full flex items-center text-xs">{charge.value.toFixed(2)}</div>
-                                        <div className="col-span-1 h-full"></div>
+                                    <div key={charge.label} className="grid grid-cols-3 border-b border-black h-[1.8rem] items-center hover:bg-gray-50 last:border-b-0">
+                                        <div className="col-span-2 border-r border-black pl-1 h-full flex items-center text-xs">{charge.label}</div>
+                                        <div className="col-span-1 pr-1 text-right h-full flex items-center text-xs">{charge.value.toFixed(2)}</div>
                                     </div>
                                 ))}
                                 {/* Show empty row if no charges */}
                                 {charges.filter(charge => charge.value > 0).length === 0 && (
-                                    <div className="grid grid-cols-4 h-[2.5rem] items-center">
+                                    <div className="grid grid-cols-3 h-[1.8rem] items-center">
                                         <div className="col-span-2 border-r border-black h-full"></div>
-                                        <div className="col-span-1 border-r border-black h-full"></div>
                                         <div className="col-span-1 h-full"></div>
                                     </div>
                                 )}
                             </div>
                             {/* Charges Total */}
-                            <div className="grid grid-cols-4 font-bold border-2 border-black bg-gray-100">
-                                <div className="col-span-2 border-r border-black p-2 text-xs">TOTAL</div>
-                                <div className="col-span-1 border-r border-black p-2 text-right text-xs">{(lorryReceipt.totalAmount || 0).toFixed(2)}</div>
-                                <div className="col-span-1 p-2"></div>
+                            <div className="grid grid-cols-3 font-bold border-2 border-black bg-gray-100">
+                                <div className="col-span-2 border-r border-black p-1 text-xs">TOTAL</div>
+                                <div className="col-span-1 p-1 text-right text-xs">{(lorryReceipt.totalAmount || 0).toFixed(2)}</div>
                             </div>
                         </div>
                     )}
@@ -340,22 +372,22 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                     <div className="col-span-6">
                         <div className="grid grid-cols-2 gap-1 mb-1">
                             <div className="border border-black p-1">
-                                <h3 className="font-bold text-xs underline">E-WAY BILL NO.</h3>
-                                <p className="text-[10px]">{lorryReceipt.eWayBillNo || 'N/A'}</p>
+                                <h3 className="font-bold text-xs underline mb-0.5">E-WAY BILL NO.</h3>
+                                <p className="text-xs">{lorryReceipt.eWayBillNo || 'N/A'}</p>
                             </div>
                             <div className="border border-black p-1">
-                                <h3 className="font-bold text-xs underline">VALUE OF GOODS Rs.</h3>
-                                <p className="text-[10px]">{lorryReceipt.valueGoods || 0}</p>
+                                <h3 className="font-bold text-xs underline mb-0.5">VALUE OF GOODS Rs.</h3>
+                                <p className="text-xs">{lorryReceipt.valueGoods || 0}</p>
                             </div>
                         </div>
-                        <div className="text-[8px] text-gray-500 italic">
+                        <div className="text-xs text-gray-500 italic">
                             <p>Goods accepted for carriage on the terms and conditions printed overleaf.</p>
                         </div>
                     </div>
                     
                     {/* Right Side - Signature */}
                     <div className="col-span-6 flex flex-col justify-end items-center">
-                        <p className="font-bold mt-8 pt-4 border-t-2 border-black w-full text-center">Signature of the Transport Operator</p>
+                        <p className="font-bold mt-4 pt-2 border-t-2 border-black w-full text-center text-xs">Signature of the Transport Operator</p>
                     </div>
                 </div>
 

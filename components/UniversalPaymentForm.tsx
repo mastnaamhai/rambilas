@@ -6,8 +6,12 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Select } from './ui/Select';
 import { Textarea } from './ui/Textarea';
+import { ValidatedInput } from './ui/ValidatedInput';
+import { ValidatedSelect } from './ui/ValidatedSelect';
+import { ValidatedTextarea } from './ui/ValidatedTextarea';
 import { FormSection } from './ui/ResponsiveForm';
-import { validateForm, commonRules } from '../services/formValidation';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { fieldRules, commonRules } from '../services/formValidation';
 import { getCurrentDate } from '../services/utils';
 
 interface UniversalPaymentFormProps {
@@ -50,7 +54,6 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
     
     console.log('Initial payment state:', JSON.stringify(payment, null, 2));
     
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [isSaving, setIsSaving] = useState(false);
 
     // Validation rules
@@ -61,9 +64,9 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
             max: Math.abs(balanceDue),
             message: `Amount must be between ₹0.01 and ₹${Math.abs(balanceDue).toLocaleString('en-IN')}` 
         },
-        date: commonRules.required,
-        type: commonRules.required,
-        mode: commonRules.required,
+        date: fieldRules.date,
+        type: { required: true, message: 'Payment type is required' },
+        mode: { required: true, message: 'Payment mode is required' },
         referenceNo: {
             custom: (value: string) => {
                 if (payment.mode !== PaymentMode.CASH && !value.trim()) {
@@ -71,16 +74,30 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
                 }
                 return null;
             }
-        }
+        },
+        notes: fieldRules.notes
     };
+
+    // Form validation hook
+    const {
+        errors,
+        isValid,
+        validateForm: validateEntireForm,
+        setFieldError,
+        clearFieldError,
+        setErrors
+    } = useFormValidation({
+        validationRules,
+        validateOnChange: true,
+        validateOnBlur: true,
+        validateOnSubmit: true
+    });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         
         // Clear error for this field
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
+        clearFieldError(name);
 
         setPayment(prev => ({
             ...prev,
@@ -88,10 +105,18 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
         }));
     };
 
+    const handleValueChange = (fieldName: string, value: any) => {
+        clearFieldError(fieldName);
+        setPayment(prev => ({
+            ...prev,
+            [fieldName]: value,
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const formErrors = validateForm(payment, validationRules);
+        const formErrors = validateEntireForm(payment);
         
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
@@ -143,7 +168,7 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto" data-form-modal="true">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <Card title={title || `Record Payment for ${getDocumentType()} ${getDocumentNumber()}`}>
@@ -181,30 +206,25 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
                         {/* Payment Details */}
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Input 
-                                    label="Payment Date" 
-                                    name="date" 
-                                    type="date" 
-                                    value={payment.date} 
-                                    onChange={handleChange} 
-                                    required 
-                                    error={errors.date}
+                                <ValidatedInput
+                                    fieldName="date"
+                                    validationRules={validationRules}
+                                    value={payment.date}
+                                    onValueChange={(value) => handleValueChange('date', value)}
+                                    type="date"
+                                    required
                                 />
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Payment Amount (₹)
-                                        <span className="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <Input 
-                                        name="amount" 
-                                        type="number" 
-                                        value={payment.amount} 
-                                        onChange={handleChange} 
-                                        required 
+                                    <ValidatedInput
+                                        fieldName="amount"
+                                        validationRules={validationRules}
+                                        value={payment.amount}
+                                        onValueChange={(value) => handleValueChange('amount', value)}
+                                        type="number"
+                                        required
                                         min="0.01"
                                         max={Math.abs(balanceDue)}
                                         step="0.01"
-                                        error={errors.amount}
                                         className="w-full text-lg py-3"
                                     />
                                     <div className="flex justify-center space-x-2 mt-3">
@@ -224,42 +244,39 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <Select 
-                                    label="Payment Type" 
-                                    name="type" 
-                                    value={payment.type} 
-                                    onChange={handleChange} 
-                                    required 
-                                    error={errors.type}
+                                <ValidatedSelect
+                                    fieldName="type"
+                                    validationRules={validationRules}
+                                    value={payment.type}
+                                    onValueChange={(value) => handleValueChange('type', value)}
+                                    required
                                 >
                                     <option value={PaymentType.RECEIPT}>Receipt</option>
                                     <option value={PaymentType.ADVANCE}>Advance</option>
                                     <option value={PaymentType.PAYMENT}>Payment</option>
-                                </Select>
-                                <Select 
-                                    label="Payment Mode" 
-                                    name="mode" 
-                                    value={payment.mode} 
-                                    onChange={handleChange} 
-                                    required 
-                                    error={errors.mode}
+                                </ValidatedSelect>
+                                <ValidatedSelect
+                                    fieldName="mode"
+                                    validationRules={validationRules}
+                                    value={payment.mode}
+                                    onValueChange={(value) => handleValueChange('mode', value)}
+                                    required
                                 >
                                     <option value={PaymentMode.CASH}>Cash</option>
                                     <option value={PaymentMode.CHEQUE}>Cheque</option>
                                     <option value={PaymentMode.NEFT}>NEFT</option>
                                     <option value={PaymentMode.RTGS}>RTGS</option>
                                     <option value={PaymentMode.UPI}>UPI</option>
-                                </Select>
+                                </ValidatedSelect>
                             </div>
 
                             {payment.mode !== PaymentMode.CASH && (
-                                <Input 
-                                    label="Reference Number" 
-                                    name="referenceNo" 
-                                    value={payment.referenceNo} 
-                                    onChange={handleChange} 
-                                    required 
-                                    error={errors.referenceNo}
+                                <ValidatedInput
+                                    fieldName="referenceNo"
+                                    validationRules={validationRules}
+                                    value={payment.referenceNo}
+                                    onValueChange={(value) => handleValueChange('referenceNo', value)}
+                                    required
                                     placeholder={
                                         payment.mode === PaymentMode.CHEQUE ? "Cheque number" :
                                         payment.mode === PaymentMode.NEFT ? "NEFT reference" :
@@ -270,11 +287,11 @@ export const UniversalPaymentForm: React.FC<UniversalPaymentFormProps> = ({
                                 />
                             )}
 
-                            <Textarea 
-                                label="Notes" 
-                                name="notes" 
-                                value={payment.notes} 
-                                onChange={handleChange} 
+                            <ValidatedTextarea
+                                fieldName="notes"
+                                validationRules={validationRules}
+                                value={payment.notes}
+                                onValueChange={(value) => handleValueChange('notes', value)}
                                 rows={3}
                                 placeholder="Additional payment notes or remarks"
                             />

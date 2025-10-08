@@ -1,9 +1,8 @@
-import React from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 import { InvoiceForm } from '../InvoiceForm';
 import { LorryReceiptStatus } from '../../types';
 
-export const InvoiceFormWrapper: React.FC = () => {
+export const InvoiceFormWrapper = () => {
   const context = useOutletContext<any>();
   const { id, lrId } = useParams();
   

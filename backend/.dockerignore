@@ -1,47 +1,12 @@
-# Dependencies
 node_modules
-npm-debug.log*
-
-# Build outputs
+npm-debug.log
 dist
-*.tsbuildinfo
-
-# Environment files
 .env
 .env.local
 .env.development
 .env.production
-local.env
-production.env
-
-# Development files
-*.log
-logs
-debug-*.html
-test-*.html
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Git
 .git
 .gitignore
-
-# Documentation
 README.md
-*.md
-
-# Uploads (will be created at runtime)
-uploads/*
-!uploads/.gitkeep
-
-# Temporary files
-tmp/
-temp/
+Dockerfile
+.dockerignore

@@ -3,8 +3,14 @@ import { Button } from './Button';
 import { Input } from './Input';
 import { Textarea } from './Textarea';
 import { Select } from './Select';
-import { fetchGstDetails } from '../../services/utils';
+import { ValidatedInput } from './ValidatedInput';
+import { ValidatedSelect } from './ValidatedSelect';
+import { ValidatedCitySelect } from './ValidatedCitySelect';
+import { ValidatedTextarea } from './ValidatedTextarea';
+import { fetchGstDetails } from '../../services/simpleGstService';
 import { indianStates } from '../../constants';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { fieldRules } from '../../services/formValidation';
 import type { Customer } from '../../types';
 
 interface CustomerCreationModalProps {
@@ -35,15 +41,53 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
     tradeName: ''
   });
 
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
+  // Validation rules for customer form
+  const validationRules = {
+    name: fieldRules.name,
+    tradeName: { maxLength: 100, message: 'Trade name cannot exceed 100 characters' },
+    address: fieldRules.address,
+    state: { required: true, message: 'State is required' },
+    city: fieldRules.city,
+    pin: fieldRules.pin,
+    gstin: { 
+      pattern: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 
+      message: 'Invalid GSTIN format' 
+    },
+    contactPerson: { maxLength: 100, message: 'Contact person name cannot exceed 100 characters' },
+    contactPhone: fieldRules.contactPhone,
+    contactEmail: fieldRules.contactEmail,
+    phone: fieldRules.phone,
+    email: fieldRules.contactEmail
+  };
+
+  // Form validation hook
+  const {
+    errors,
+    isValid,
+    validateForm: validateEntireForm,
+    setFieldError,
+    clearFieldError,
+    setErrors
+  } = useFormValidation({
+    validationRules,
+    validateOnChange: true,
+    validateOnBlur: true,
+    validateOnSubmit: true
+  });
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    setErrors(prev => ({ ...prev, [name]: '' }));
+    clearFieldError(name);
+  };
+
+  const handleValueChange = (fieldName: string, value: any) => {
+    clearFieldError(fieldName);
+    setFormData(prev => ({ ...prev, [fieldName]: value }));
   };
 
   const handleVerifyGstin = async () => {
@@ -55,15 +99,22 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
     setVerifyStatus(null);
     setErrors(prev => ({...prev, gstin: undefined}));
     try {
-      const details = await fetchGstDetails(formData.gstin);
+      const result = await fetchGstDetails(formData.gstin);
+      
+      if (!result.success) {
+        setVerifyStatus({ message: result.error || 'Failed to verify GSTIN. Please try again.', type: 'error' });
+        return;
+      }
+
       setFormData(prev => ({
         ...prev,
-        name: details.name, // Legal Name
-        tradeName: details.tradeName,
-        address: details.address,
-        state: details.state,
+        name: result.data?.name || prev.name,
+        tradeName: result.data?.tradeName || prev.tradeName,
+        address: result.data?.address || prev.address,
+        state: result.data?.state || prev.state,
       }));
-      setVerifyStatus({ message: 'GSTIN verified. Name, Address and State pre-filled.', type: 'success' });
+      
+      setVerifyStatus({ message: 'GSTIN verified successfully. Customer details fetched.', type: 'success' });
     } catch (error: any) {
       setVerifyStatus({ message: error.message || 'Verification failed.', type: 'error' });
     } finally {
@@ -72,15 +123,9 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
   };
 
   const validate = () => {
-    const newErrors: { [key: string]: string } = {};
-    if (!formData.name) newErrors.name = 'Name is required';
-    if (!formData.address) newErrors.address = 'Address is required';
-    if (!formData.state) newErrors.state = 'State is required';
-    if (formData.gstin && formData.gstin.length !== 15) {
-      newErrors.gstin = 'GSTIN must be 15 characters';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const formErrors = validateEntireForm(formData);
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
   };
 
   const handleSave = async () => {
@@ -89,7 +134,22 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
     setIsSaving(true);
     try {
       const { _id, ...customerData } = formData as Customer;
-      const newCustomer = await onSave(customerData);
+      
+      // Filter out empty strings for optional fields to prevent MongoDB duplicate key errors
+      const processedCustomerData = {
+        ...customerData,
+        gstin: customerData.gstin && customerData.gstin.trim() !== '' ? customerData.gstin : undefined,
+        contactPerson: customerData.contactPerson && customerData.contactPerson.trim() !== '' ? customerData.contactPerson : undefined,
+        contactPhone: customerData.contactPhone && customerData.contactPhone.trim() !== '' ? customerData.contactPhone : undefined,
+        contactEmail: customerData.contactEmail && customerData.contactEmail.trim() !== '' ? customerData.contactEmail : undefined,
+        city: customerData.city && customerData.city.trim() !== '' ? customerData.city : undefined,
+        pin: customerData.pin && customerData.pin.trim() !== '' ? customerData.pin : undefined,
+        phone: customerData.phone && customerData.phone.trim() !== '' ? customerData.phone : undefined,
+        email: customerData.email && customerData.email.trim() !== '' ? customerData.email : undefined,
+        tradeName: customerData.tradeName && customerData.tradeName.trim() !== '' ? customerData.tradeName : undefined,
+      };
+      
+      const newCustomer = await onSave(processedCustomerData);
       onSelect(newCustomer);
       onClose();
       // Reset form
@@ -119,7 +179,7 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-start justify-center p-4 overflow-y-auto" data-form-modal="true">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -173,53 +233,53 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
 
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Business Name *"
-                name="name"
+              <ValidatedInput
+                fieldName="name"
+                validationRules={validationRules}
                 value={formData.name || ''}
-                onChange={handleChange}
-                error={errors.name}
+                onValueChange={(value) => handleValueChange('name', value)}
                 required
               />
-              <Input
-                label="Trade Name"
-                name="tradeName"
+              <ValidatedInput
+                fieldName="tradeName"
+                validationRules={validationRules}
                 value={formData.tradeName || ''}
-                onChange={handleChange}
+                onValueChange={(value) => handleValueChange('tradeName', value)}
               />
             </div>
 
-            <Textarea
-              label="Address *"
-              name="address"
+            <ValidatedTextarea
+              fieldName="address"
+              validationRules={validationRules}
               value={formData.address || ''}
-              onChange={handleChange}
-              error={errors.address}
+              onValueChange={(value) => handleValueChange('address', value)}
               required
               rows={3}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Select
-                label="State *"
-                name="state"
+              <ValidatedSelect
+                fieldName="state"
+                validationRules={validationRules}
                 value={formData.state || ''}
-                onChange={handleChange}
-                error={errors.state}
+                onValueChange={(value) => handleValueChange('state', value)}
                 required
                 options={indianStates.map(s => ({ value: s, label: s }))}
               />
-              <Input
-                label="City"
-                name="city"
+              <ValidatedCitySelect
+                fieldName="city"
+                validationRules={validationRules}
                 value={formData.city || ''}
-                onChange={handleChange}
+                onValueChange={(value) => handleValueChange('city', value)}
+                state={formData.state}
+                label="City"
+                placeholder="Type to search cities..."
               />
-              <Input
-                label="PIN Code"
-                name="pin"
+              <ValidatedInput
+                fieldName="pin"
+                validationRules={validationRules}
                 value={formData.pin || ''}
-                onChange={handleChange}
+                onValueChange={(value) => handleValueChange('pin', value)}
                 maxLength={6}
               />
             </div>

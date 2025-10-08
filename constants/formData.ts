@@ -1,21 +1,8 @@
-export const commonCities = [
-  'Chennai', 'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad',
-  'Jaipur', 'Surat', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal',
-  'Visakhapatnam', 'Pimpri-Chinchwad', 'Patna', 'Vadodara', 'Ghaziabad', 'Ludhiana',
-  'Agra', 'Nashik', 'Faridabad', 'Meerut', 'Rajkot', 'Kalyan-Dombivali', 'Vasai-Virar',
-  'Varanasi', 'Srinagar', 'Aurangabad', 'Navi Mumbai', 'Solapur', 'Vijayawada',
-  'Kolhapur', 'Amritsar', 'Nashik', 'Sangli', 'Malegaon', 'Ulhasnagar', 'Jalgaon',
-  'Akola', 'Latur', 'Ahmadnagar', 'Dhule', 'Ichalkaranji', 'Parbhani', 'Jalna',
-  'Bhusawal', 'Panvel', 'Satara', 'Beed', 'Yavatmal', 'Kamptee', 'Gondia', 'Barshi',
-  'Achalpur', 'Osmanabad', 'Nanded-Waghala', 'Wardha', 'Udgir', 'Aurangabad',
-  'Amalner', 'Akot', 'Pandharpur', 'Shrirampur', 'Parli', 'Washim', 'Amravati',
-  'Ratnagiri', 'Nagpur', 'Buldhana', 'Bid', 'Yavatmal', 'Wardha', 'Gadchiroli',
-  'Chandrapur', 'Gondia', 'Bhandara', 'Washim', 'Hingoli', 'Nanded', 'Parbhani',
-  'Jalna', 'Aurangabad', 'Nashik', 'Dhule', 'Jalgaon', 'Buldhana', 'Akola',
-  'Washim', 'Amravati', 'Yavatmal', 'Wardha', 'Nagpur', 'Bhandara', 'Gondia',
-  'Chandrapur', 'Gadchiroli', 'Bid', 'Latur', 'Osmanabad', 'Solapur', 'Pune',
-  'Ahmednagar', 'Kolhapur', 'Sangli', 'Satara', 'Ratnagiri', 'Sindhudurg'
-];
+// Import comprehensive city data
+import { getCityNames } from './indianCities';
+
+// Use comprehensive city list from indianCities.ts
+export const commonCities = getCityNames();
 
 export const commonGoodsTypes = [
   'General Cargo', 'Textiles', 'Electronics', 'Machinery', 'Chemicals', 'Food Items',

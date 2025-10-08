@@ -1,38 +1,25 @@
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import LorryReceipt from '../models/lorryReceipt';
-import { getNextSequenceValue } from '../utils/sequence';
-import { lrListQuerySchema, createLrSchema, updateLrSchema } from '../utils/validation';
+import NumberingConfig from '../models/numbering';
+import { paginationQuerySchema, createLrSchema, updateLrSchema } from '../utils/validation';
 import { LorryReceiptStatus } from '../types';
 
 export const getLorryReceipts = asyncHandler(async (req: Request, res: Response) => {
-  const { page = '1', limit = '20', ...filters } = lrListQuerySchema.parse(req.query);
-
-  const query: any = {};
-  if (filters.startDate) query.date = { ...query.date, $gte: new Date(filters.startDate) };
-  if (filters.endDate) query.date = { ...query.date, $lte: new Date(filters.endDate) };
-  if (filters.customerId) query['consignor.id'] = filters.customerId;
-  if (filters.status) query.status = filters.status;
-  if (filters.search) {
-    query.$or = [
-      { lrNumber: { $regex: filters.search, $options: 'i' } },
-      { 'consignor.name': { $regex: filters.search, $options: 'i' } },
-      { 'consignee.name': { $regex: filters.search, $options: 'i' } },
-    ];
-  }
+  const { page = '1', limit = '20' } = paginationQuerySchema.parse(req.query);
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
-  const items = await LorryReceipt.find(query)
+  const items = await LorryReceipt.find()
     .populate('consignor')
     .populate('consignee')
     .sort({ lrNumber: -1 })
     .skip(skip)
     .limit(limitNum);
 
-  const total = await LorryReceipt.countDocuments(query);
+  const total = await LorryReceipt.countDocuments();
 
   res.json({ items, total, page: pageNum, limit: limitNum });
 });
@@ -72,8 +59,35 @@ export const createLorryReceipt = asyncHandler(async (req: Request, res: Respons
     console.log('Validated data:', JSON.stringify(lrData, null, 2));
     
     // Use custom LR number if provided, otherwise generate one
-    const lrNumber = lrData.lrNumber || await getNextSequenceValue('lr');
-    console.log('Using LR number:', lrNumber);
+    let lrNumber = lrData.lrNumber;
+    if (!lrNumber) {
+      let config = await NumberingConfig.findOne({ type: 'consignment' });
+      if (!config) {
+        // Initialize numbering config for consignment if it doesn't exist
+        config = await NumberingConfig.create({
+          type: 'consignment',
+          startingNumber: 5001,
+          currentNumber: 5001,
+          prefix: 'LR'
+        });
+        console.log('Created new consignment numbering config');
+      }
+      
+      lrNumber = config.currentNumber;
+      config.currentNumber = config.currentNumber + 1;
+      await config.save();
+      console.log('Generated Consignment number:', lrNumber);
+    } else {
+      // Validate manual entry for uniqueness
+      const existingLr = await LorryReceipt.findOne({ lrNumber });
+      if (existingLr) {
+        res.status(400).json({ 
+          message: 'Consignment number already exists. Please enter a different number.' 
+        });
+        return;
+      }
+      console.log('Using custom Consignment number:', lrNumber);
+    }
     
     const lorryReceipt = new LorryReceipt({
       ...lrData,
@@ -210,63 +224,10 @@ export const deleteLorryReceipt = asyncHandler(async (req: Request, res: Respons
 });
 
 export const getUnbilledLorryReceipts = asyncHandler(async (req: Request, res: Response) => {
-  const { 
-    customerId, 
-    status, 
-    startDate, 
-    endDate, 
-    minAmount, 
-    maxAmount,
-    search 
-  } = req.query;
-  
   // Get all LRs that are not invoiced or paid
-  const query: any = {
+  const query = {
     status: { $nin: [LorryReceiptStatus.INVOICED, LorryReceiptStatus.PAID] }
   };
-  
-  // If customerId is provided, filter by consignor or consignee
-  if (customerId) {
-    query.$or = [
-      { consignor: customerId },
-      { consignee: customerId }
-    ];
-  }
-  
-  // Filter by status if provided
-  if (status) {
-    query.status = status;
-  }
-  
-  // Filter by date range
-  if (startDate || endDate) {
-    query.date = {};
-    if (startDate) query.date.$gte = new Date(startDate as string);
-    if (endDate) query.date.$lte = new Date(endDate as string);
-  }
-  
-  // Filter by amount range
-  if (minAmount || maxAmount) {
-    query.totalAmount = {};
-    if (minAmount) query.totalAmount.$gte = parseFloat(minAmount as string);
-    if (maxAmount) query.totalAmount.$lte = parseFloat(maxAmount as string);
-  }
-  
-  // Search functionality
-  if (search) {
-    const searchRegex = { $regex: search, $options: 'i' };
-    query.$and = [
-      {
-        $or: [
-          { lrNumber: { $regex: search, $options: 'i' } },
-          { from: searchRegex },
-          { to: searchRegex },
-          { 'consignor.name': searchRegex },
-          { 'consignee.name': searchRegex }
-        ]
-      }
-    ];
-  }
   
   const lorryReceipts = await LorryReceipt.find(query)
     .populate('consignor')

@@ -9,45 +9,57 @@ interface ManualCustomerData {
     name: string;
     address: string;
     state: string;
-    gstin: string;
-    contactPerson: string;
-    contactPhone: string;
-    contactEmail: string;
+    gstin?: string;
+    contactPerson?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    city?: string;
+    pin?: string;
+    phone?: string;
+    email?: string;
+    tradeName?: string;
 }
 
 const STORAGE_KEY = 'lorryReceiptFormState';
 
-const getInitialState = (): LorryReceiptFormData => ({
-    lrNumber: 0,
-    date: '',
-    consignorId: '',
-    consigneeId: '',
-    vehicleNumber: '',
-    from: '',
-    to: '',
-    loadingAddress: '',
-    deliveryAddress: '',
-    packages: [{ count: 1, packingMethod: '', description: '', actualWeight: 0, chargedWeight: 0 }],
-    charges: { freight: 0, aoc: 0, hamali: 0, bCh: 0, trCh: 0, detentionCh: 0 },
-    totalAmount: 0,
-    eWayBillNo: '',
-    valueGoods: 0,
-    gstPayableBy: GstPayableBy.CONSIGNOR,
-    riskBearer: RiskBearer.OWNER,
-    insurance: { 
-        hasInsured: false,
-        company: '',
-        policyNo: '',
-        date: '',
-        amount: 0,
-        risk: ''
-    },
-    invoiceNo: '',
-    sealNo: '',
-    reportingDate: '',
-    deliveryDate: '',
-    remarks: '',
-});
+const getInitialState = (): LorryReceiptFormData => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const currentDate = `${year}-${month}-${day}`;
+    
+    return {
+        lrNumber: 0,
+        date: currentDate,
+        consignorId: '',
+        consigneeId: '',
+        vehicleNumber: '',
+        from: '',
+        to: '',
+        loadingAddress: '',
+        deliveryAddress: '',
+        packages: [{ count: 1, packingMethod: 'Bags', description: '', actualWeight: 0, chargedWeight: 0 }],
+        charges: { freight: 0, aoc: 0, hamali: 0, bCh: 0, trCh: 0, detentionCh: 0 },
+        totalAmount: 0,
+        eWayBillNo: '',
+        valueGoods: 0,
+        gstPayableBy: GstPayableBy.CONSIGNOR,
+        riskBearer: RiskBearer.OWNER,
+        insurance: { 
+            hasInsured: false,
+            company: '',
+            policyNo: '',
+            date: '',
+            amount: 0
+        },
+        invoiceNo: '',
+        sealNo: '',
+        reportingDate: '',
+        deliveryDate: '',
+        remarks: '',
+    };
+};
 
 const getInitialManualState = (): ManualCustomerData => ({
     name: '',
@@ -56,7 +68,12 @@ const getInitialManualState = (): ManualCustomerData => ({
     gstin: '',
     contactPerson: '',
     contactPhone: '',
-    contactEmail: ''
+    contactEmail: '',
+    city: '',
+    pin: '',
+    phone: '',
+    email: '',
+    tradeName: ''
 });
 
 export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
@@ -86,7 +103,7 @@ export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
     const [isSaving, setIsSaving] = useState(false);
 
     // Form configuration states
-    const [allowManualLr, setAllowManualLr] = useState(true);
+    const [allowManualLr, setAllowManualLr] = useState(false);
     
     // GSTIN verification states
     const [gstinConsignor, setGstinConsignor] = useState('');
@@ -124,6 +141,7 @@ export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
         const initialState = getInitialState();
         setLr(initialState);
         setErrors({});
+        setAllowManualLr(false);
         setGstinConsignor('');
         setGstinConsignee('');
         setIsVerifyingConsignor(false);
@@ -204,12 +222,11 @@ export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
                 return {
                     ...updatedLr,
                     insurance: {
-                        hasInsured: false,
-                        company: '',
-                        policyNo: '',
-                        date: '',
-                        amount: 0,
-                        risk: '',
+                        hasInsured: prev.insurance?.hasInsured || false,
+                        company: prev.insurance?.company || '',
+                        policyNo: prev.insurance?.policyNo || '',
+                        date: prev.insurance?.date || '',
+                        amount: prev.insurance?.amount || 0,
                         ...prev.insurance,
                         [field]: type === 'number' ? parseFloat(value) || 0 : value
                     }
@@ -226,8 +243,11 @@ export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
             setLr(prev => ({
                 ...prev,
                 insurance: {
-                    ...prev.insurance,
-                    hasInsured: checked
+                    hasInsured: checked,
+                    company: prev.insurance?.company || '',
+                    policyNo: prev.insurance?.policyNo || '',
+                    date: prev.insurance?.date || '',
+                    amount: prev.insurance?.amount || 0
                 }
             }));
         }

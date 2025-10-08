@@ -2,15 +2,14 @@ import React, { useState, useMemo } from 'react';
 import type { TruckHiringNote, Payment, CompanyInfo } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
 import { TruckHiringNoteForm } from './TruckHiringNoteForm';
 import { UniversalPaymentForm } from './UniversalPaymentForm';
 import { UniversalPaymentHistoryModal } from './UniversalPaymentHistoryModal';
 import { formatDate } from '../services/utils';
 import type { View } from '../App';
-import { FilterSection } from './ui/FilterSection';
 import { Pagination } from './ui/Pagination';
 import { StatusBadge, getStatusVariant } from './ui/StatusBadge';
+import { UniversalSearchSort, SortOption } from './ui/UniversalSearchSort';
 
 interface TruckHiringNotesProps {
     notes: TruckHiringNote[];
@@ -27,11 +26,8 @@ interface TruckHiringNotesProps {
 
 interface THNTableFilters {
     searchTerm: string;
-    startDate: string;
-    endDate: string;
-    showOnlyOutstanding: boolean;
-    truckType: string;
-    status: string;
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
 }
 
 export const TruckHiringNotes: React.FC<TruckHiringNotesProps> = ({ 
@@ -45,43 +41,108 @@ export const TruckHiringNotes: React.FC<TruckHiringNotesProps> = ({
     const [selectedNoteForHistory, setSelectedNoteForHistory] = useState<TruckHiringNote | null>(null);
 
     const [searchTerm, setSearchTerm] = useState(initialFilters?.searchTerm || '');
-    const [startDate, setStartDate] = useState(initialFilters?.startDate || '');
-    const [endDate, setEndDate] = useState(initialFilters?.endDate || '');
-    const [showOnlyOutstanding, setShowOnlyOutstanding] = useState(initialFilters?.showOnlyOutstanding || false);
-    const [truckType, setTruckType] = useState(initialFilters?.truckType || '');
-    const [status, setStatus] = useState(initialFilters?.status || '');
+    const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'thnNumber');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialFilters?.sortOrder || 'desc');
     
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(25);
 
+    // Sort options for THN
+    const sortOptions: SortOption[] = [
+        { value: 'thnNumber', label: 'Sort by THN Number' },
+        { value: 'date', label: 'Sort by Date' },
+        { value: 'truckOwnerName', label: 'Sort by Owner' },
+        { value: 'truckNumber', label: 'Sort by Truck Number' },
+        { value: 'truckType', label: 'Sort by Truck Type' },
+        { value: 'loadingLocation', label: 'Sort by Loading Location' },
+        { value: 'unloadingLocation', label: 'Sort by Unloading Location' },
+        { value: 'freightRate', label: 'Sort by Freight Rate' },
+        { value: 'totalAmount', label: 'Sort by Total Amount' },
+        { value: 'balanceAmount', label: 'Sort by Balance' },
+        { value: 'status', label: 'Sort by Status' }
+    ];
+
     const filteredNotes = useMemo(() => {
-        return notes
-            .filter(note => {
-                const searchLower = searchTerm.toLowerCase();
-                const matchesSearch = searchTerm === '' ||
-                    note.thnNumber.toString().includes(searchTerm) ||
-                    note.truckOwnerName.toLowerCase().includes(searchLower) ||
-                    note.truckNumber.toLowerCase().includes(searchLower) ||
-                    note.loadingLocation.toLowerCase().includes(searchLower) ||
-                    note.unloadingLocation.toLowerCase().includes(searchLower) ||
-                    note.goodsType.toLowerCase().includes(searchLower);
+        let filtered = notes.filter(note => {
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = searchTerm === '' ||
+                note.thnNumber.toString().includes(searchTerm) ||
+                note.truckOwnerName.toLowerCase().includes(searchLower) ||
+                note.truckNumber.toLowerCase().includes(searchLower) ||
+                note.loadingLocation.toLowerCase().includes(searchLower) ||
+                note.unloadingLocation.toLowerCase().includes(searchLower) ||
+                note.goodsType.toLowerCase().includes(searchLower) ||
+                note.truckType.toLowerCase().includes(searchLower) ||
+                note.status.toLowerCase().includes(searchLower);
 
-                const noteDate = new Date(note.date);
-                const start = startDate ? new Date(startDate) : null;
-                const end = endDate ? new Date(endDate) : null;
+            return matchesSearch;
+        });
 
-                const matchesStartDate = !start || noteDate >= start;
-                const matchesEndDate = !end || noteDate <= end;
-                const matchesOutstanding = !showOnlyOutstanding || note.balanceAmount > 0;
-                const matchesTruckType = !truckType || note.truckType === truckType;
-                const matchesStatus = !status || note.status === status;
+        // Sort the filtered results
+        filtered.sort((a, b) => {
+            let aValue: any = '';
+            let bValue: any = '';
+            
+            switch (sortBy) {
+                case 'thnNumber':
+                    aValue = a.thnNumber;
+                    bValue = b.thnNumber;
+                    break;
+                case 'date':
+                    aValue = new Date(a.date);
+                    bValue = new Date(b.date);
+                    break;
+                case 'truckOwnerName':
+                    aValue = a.truckOwnerName.toLowerCase();
+                    bValue = b.truckOwnerName.toLowerCase();
+                    break;
+                case 'truckNumber':
+                    aValue = a.truckNumber.toLowerCase();
+                    bValue = b.truckNumber.toLowerCase();
+                    break;
+                case 'truckType':
+                    aValue = a.truckType.toLowerCase();
+                    bValue = b.truckType.toLowerCase();
+                    break;
+                case 'loadingLocation':
+                    aValue = a.loadingLocation.toLowerCase();
+                    bValue = b.loadingLocation.toLowerCase();
+                    break;
+                case 'unloadingLocation':
+                    aValue = a.unloadingLocation.toLowerCase();
+                    bValue = b.unloadingLocation.toLowerCase();
+                    break;
+                case 'freightRate':
+                    aValue = a.freightRate || 0;
+                    bValue = b.freightRate || 0;
+                    break;
+                case 'totalAmount':
+                    aValue = a.totalAmount || (a.freightRate + (a.additionalCharges || 0));
+                    bValue = b.totalAmount || (b.freightRate + (b.additionalCharges || 0));
+                    break;
+                case 'balanceAmount':
+                    aValue = a.balanceAmount || 0;
+                    bValue = b.balanceAmount || 0;
+                    break;
+                case 'status':
+                    aValue = a.status.toLowerCase();
+                    bValue = b.status.toLowerCase();
+                    break;
+                default:
+                    aValue = a.thnNumber;
+                    bValue = b.thnNumber;
+            }
+            
+            if (sortOrder === 'asc') {
+                return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+            } else {
+                return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+            }
+        });
 
-                return matchesSearch && matchesStartDate && matchesEndDate && 
-                       matchesOutstanding && matchesTruckType && matchesStatus;
-            })
-            .sort((a, b) => b.thnNumber - a.thnNumber);
-    }, [notes, searchTerm, startDate, endDate, showOnlyOutstanding, truckType, status]);
+        return filtered;
+    }, [notes, searchTerm, sortBy, sortOrder]);
 
     // Paginated notes
     const paginatedNotes = useMemo(() => {
@@ -91,18 +152,13 @@ export const TruckHiringNotes: React.FC<TruckHiringNotesProps> = ({
 
     const totalPages = Math.ceil(filteredNotes.length / itemsPerPage);
 
-    // Reset to first page when filters change
+    // Reset to first page when search or sort changes
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, startDate, endDate, showOnlyOutstanding, truckType, status]);
+    }, [searchTerm, sortBy, sortOrder]);
 
-    const handleClearFilters = () => {
+    const handleClearSearch = () => {
         setSearchTerm('');
-        setStartDate('');
-        setEndDate('');
-        setShowOnlyOutstanding(false);
-        setTruckType('');
-        setStatus('');
         setCurrentPage(1);
     };
 
@@ -162,8 +218,6 @@ export const TruckHiringNotes: React.FC<TruckHiringNotesProps> = ({
         }
     };
 
-    const uniqueTruckTypes = Array.from(new Set(notes.map(note => note.truckType))).sort();
-
     return (
         <div className="space-y-6">
             {isFormOpen && (
@@ -210,73 +264,19 @@ export const TruckHiringNotes: React.FC<TruckHiringNotesProps> = ({
                     </div>
                 </div>
 
-                <FilterSection onClearFilters={handleClearFilters}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Input
-                            type="text"
-                            label="Search by THN No, Owner, Truck No, etc..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            wrapperClassName="md:col-span-3"
-                            placeholder="Enter THN number, owner name, truck number..."
-                        />
-                        <Input 
-                            label="Start Date" 
-                            type="date" 
-                            value={startDate} 
-                            onChange={e => setStartDate(e.target.value)}
-                            placeholder="Select start date"
-                        />
-                        <Input 
-                            label="End Date" 
-                            type="date" 
-                            value={endDate} 
-                            onChange={e => setEndDate(e.target.value)}
-                            placeholder="Select end date"
-                        />
-                        <div className="flex items-center pt-6">
-                            <input
-                                id="outstanding-checkbox"
-                                type="checkbox"
-                                checked={showOnlyOutstanding}
-                                onChange={(e) => setShowOnlyOutstanding(e.target.checked)}
-                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                            />
-                            <label htmlFor="outstanding-checkbox" className="ml-2 block text-sm text-gray-900">
-                                Show Only Outstanding
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Truck Type</label>
-                            <select
-                                value={truckType}
-                                onChange={(e) => setTruckType(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-                            >
-                                <option value="">All Types</option>
-                                {uniqueTruckTypes.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                            <select
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
-                            >
-                                <option value="">All Status</option>
-                                <option value="Unpaid">Unpaid</option>
-                                <option value="Partially Paid">Partially Paid</option>
-                                <option value="Paid">Paid</option>
-                            </select>
-                        </div>
-                    </div>
-                </FilterSection>
+                <UniversalSearchSort
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    searchPlaceholder="Search by THN number, owner name, truck number, locations, goods type, truck type, or status..."
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                    sortOrder={sortOrder}
+                    onSortOrderChange={setSortOrder}
+                    sortOptions={sortOptions}
+                    totalItems={notes.length}
+                    filteredItems={filteredNotes.length}
+                    onClearSearch={handleClearSearch}
+                />
             </Card>
 
             <Card>

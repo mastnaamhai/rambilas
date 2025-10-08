@@ -8,11 +8,16 @@
     "dev": "ts-node src/index.ts",
     "build": "tsc",
     "build:clean": "rm -rf dist && tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm run build"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["logistics", "truck", "management", "api"],
+  "author": "TranspoTruck Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "@google-cloud/storage": "^7.17.1",
     "@types/cors": "^2.8.19",

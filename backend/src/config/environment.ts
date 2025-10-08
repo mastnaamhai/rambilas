@@ -3,66 +3,39 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-interface EnvironmentConfig {
-  // Database
-  mongodbUri: string;
-  
-  // Server
+interface Config {
   port: number;
   nodeEnv: string;
-  
-  // CORS
+  mongodbUri: string;
   corsOrigin: string | string[];
-  
-  // JWT
   jwtSecret: string;
-  
-  // API Keys
-  gstinApiKey?: string;
+  appPasswordHash: string;
+  gstinApiKey: string;
 }
 
-const requiredEnvVars = [
-  'MONGODB_URI',
-  'JWT_SECRET'
-] as const;
+const config: Config = {
+  port: parseInt(process.env.PORT || '8080', 10),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  mongodbUri: process.env.MONGODB_URI || '',
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  jwtSecret: process.env.JWT_SECRET || '',
+  appPasswordHash: process.env.APP_PASSWORD_HASH || '',
+  gstinApiKey: process.env.VITE_GSTIN_API_KEY || ''
+};
 
-// Validate required environment variables
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
+// Validate required environment variables in production
+if (config.nodeEnv === 'production') {
+  const requiredVars = ['MONGODB_URI', 'JWT_SECRET', 'APP_PASSWORD_HASH'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
   }
 }
 
-// Validate JWT secret strength in production
-if (process.env.NODE_ENV === 'production' && process.env.JWT_SECRET === 'your-super-secret-jwt-key-here-change-this-in-production') {
-  throw new Error('JWT_SECRET must be changed from default value in production');
+// Parse CORS origin if it's a comma-separated string
+if (typeof config.corsOrigin === 'string' && config.corsOrigin.includes(',')) {
+  config.corsOrigin = config.corsOrigin.split(',').map(origin => origin.trim());
 }
 
-export const config: EnvironmentConfig = {
-  // Database
-  mongodbUri: process.env.MONGODB_URI!,
-  
-  // Server
-  port: parseInt(process.env.PORT || '8080', 10),
-  nodeEnv: process.env.NODE_ENV || 'production',
-  
-  // CORS - Production only
-  corsOrigin: process.env.CORS_ORIGIN || 'https://ttruck.netlify.app',
-  
-  // JWT
-  jwtSecret: process.env.JWT_SECRET!,
-  
-  // API Keys
-  gstinApiKey: process.env.VITE_GSTIN_API_KEY,
-};
-
 export default config;
-
-
-
-
-
-
-
-
-

@@ -3,16 +3,14 @@ import type { Invoice, Customer, CompanyInfo, Payment } from '../types';
 import { InvoiceStatus } from '../types';
 import type { View } from '../App';
 import { formatDate } from '../services/utils';
-import { Input } from './ui/Input';
 import { Card } from './ui/Card';
-import { Select } from './ui/Select';
 import { Button } from './ui/Button';
 import { InvoiceView } from './InvoicePDF';
 import { UniversalPaymentForm } from './UniversalPaymentForm';
 import { UniversalPaymentHistoryModal } from './UniversalPaymentHistoryModal';
-import { FilterSection } from './ui/FilterSection';
 import { Pagination } from './ui/Pagination';
 import { StatusBadge, getStatusVariant } from './ui/StatusBadge';
+import { UniversalSearchSort, SortOption } from './ui/UniversalSearchSort';
 
 interface InvoicesProps {
   invoices: Invoice[];
@@ -28,10 +26,8 @@ interface InvoicesProps {
 
 interface InvoicesTableFilters {
     searchTerm: string;
-    startDate: string;
-    endDate: string;
-    selectedCustomerId: string;
-    status: InvoiceStatus[];
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
 }
 
 // Helper function to calculate payment information for an invoice
@@ -92,6 +88,7 @@ const PreviewModal: React.FC<{
     <div
       className={`fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-2 sm:p-4 transition-opacity duration-300 ease-in-out ${backdropAnimation}`}
       onClick={closeModal}
+      data-form-modal="true"
       aria-modal="true"
       role="dialog"
       data-pdf-viewer="true"
@@ -165,10 +162,8 @@ const PreviewModal: React.FC<{
 
 export const Invoices: React.FC<InvoicesProps> = ({ invoices, payments, customers, companyInfo, onViewChange, onDeleteInvoice, onSavePayment, onBack, initialFilters }) => {
   const [searchTerm, setSearchTerm] = useState(initialFilters?.searchTerm || '');
-  const [startDate, setStartDate] = useState(initialFilters?.startDate || '');
-  const [endDate, setEndDate] = useState(initialFilters?.endDate || '');
-  const [selectedCustomerId, setSelectedCustomerId] = useState(initialFilters?.selectedCustomerId || '');
-  const [status, setStatus] = useState<InvoiceStatus[]>(initialFilters?.status || []);
+  const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'invoiceNumber');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialFilters?.sortOrder || 'desc');
   const [previewItem, setPreviewItem] = useState<{type: 'INVOICE', data: Invoice} | null>(null);
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
@@ -178,6 +173,15 @@ export const Invoices: React.FC<InvoicesProps> = ({ invoices, payments, customer
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+
+  // Sort options for Invoices
+  const sortOptions: SortOption[] = [
+    { value: 'invoiceNumber', label: 'Sort by Invoice Number' },
+    { value: 'date', label: 'Sort by Date' },
+    { value: 'customer', label: 'Sort by Customer' },
+    { value: 'grandTotal', label: 'Sort by Amount' },
+    { value: 'status', label: 'Sort by Status' }
+  ];
 
   const handleOpenPaymentForm = (invoice: Invoice) => {
     console.log('Opening payment form for invoice:', JSON.stringify(invoice, null, 2));
@@ -192,33 +196,59 @@ export const Invoices: React.FC<InvoicesProps> = ({ invoices, payments, customer
   };
 
   const filteredInvoices = useMemo(() => {
-    return invoices
-      .filter(inv => {
-        const customerName = inv.customer?.name || '';
-        const searchLower = searchTerm.toLowerCase();
+    let filtered = invoices.filter(inv => {
+      const customerName = inv.customer?.name || '';
+      const searchLower = searchTerm.toLowerCase();
 
-        const matchesSearch = searchTerm === '' ||
-          inv.invoiceNumber.toString().includes(searchTerm) ||
-          customerName.toLowerCase().includes(searchLower) ||
-          inv.lorryReceipts.some(lr => lr.lrNumber.toString().includes(searchTerm));
+      const matchesSearch = searchTerm === '' ||
+        inv.invoiceNumber.toString().includes(searchTerm) ||
+        customerName.toLowerCase().includes(searchLower) ||
+        inv.lorryReceipts.some(lr => lr.lrNumber.toString().includes(searchTerm)) ||
+        inv.status.toLowerCase().includes(searchLower);
 
-        const invDate = new Date(inv.date);
-        invDate.setHours(0, 0, 0, 0);
+      return matchesSearch;
+    });
 
-        const start = startDate ? new Date(startDate) : null;
-        if(start) start.setHours(0,0,0,0);
-        const end = endDate ? new Date(endDate) : null;
-        if(end) end.setHours(0,0,0,0);
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      let aValue: any = '';
+      let bValue: any = '';
+      
+      switch (sortBy) {
+        case 'invoiceNumber':
+          aValue = a.invoiceNumber;
+          bValue = b.invoiceNumber;
+          break;
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'customer':
+          aValue = (a.customer?.name || '').toLowerCase();
+          bValue = (b.customer?.name || '').toLowerCase();
+          break;
+        case 'grandTotal':
+          aValue = a.grandTotal || 0;
+          bValue = b.grandTotal || 0;
+          break;
+        case 'status':
+          aValue = a.status.toLowerCase();
+          bValue = b.status.toLowerCase();
+          break;
+        default:
+          aValue = a.invoiceNumber;
+          bValue = b.invoiceNumber;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
 
-        const matchesStartDate = !start || invDate >= start;
-        const matchesEndDate = !end || invDate <= end;
-        const matchesCustomer = selectedCustomerId === '' || inv.customer?._id === selectedCustomerId;
-        const matchesStatus = status.length === 0 || status.includes(inv.status);
-
-        return matchesSearch && matchesStartDate && matchesEndDate && matchesCustomer && matchesStatus;
-      })
-      .sort((a, b) => b.invoiceNumber - a.invoiceNumber);
-  }, [invoices, searchTerm, startDate, endDate, selectedCustomerId, status]);
+    return filtered;
+  }, [invoices, searchTerm, sortBy, sortOrder]);
 
   // Paginated invoices
   const paginatedInvoices = useMemo(() => {
@@ -228,17 +258,13 @@ export const Invoices: React.FC<InvoicesProps> = ({ invoices, payments, customer
 
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
 
-  // Reset to first page when filters change
+  // Reset to first page when search or sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, selectedCustomerId, status]);
+  }, [searchTerm, sortBy, sortOrder]);
 
-  const handleClearFilters = () => {
+  const handleClearSearch = () => {
     setSearchTerm('');
-    setStartDate('');
-    setEndDate('');
-    setSelectedCustomerId('');
-    setStatus([]);
     setCurrentPage(1);
   };
 
@@ -279,48 +305,19 @@ export const Invoices: React.FC<InvoicesProps> = ({ invoices, payments, customer
             </div>
         </div>
         
-        <FilterSection onClearFilters={handleClearFilters}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Input
-              type="text"
-              label="Search by Inv No, Client..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              wrapperClassName="md:col-span-2 lg:col-span-2"
-              placeholder="Enter invoice number, client name..."
-            />
-            <Input 
-              label="Start Date" 
-              type="date" 
-              value={startDate} 
-              onChange={e => setStartDate(e.target.value)}
-              placeholder="Select start date"
-            />
-            <Input 
-              label="End Date" 
-              type="date" 
-              value={endDate} 
-              onChange={e => setEndDate(e.target.value)}
-              placeholder="Select end date"
-            />
-            <Select
-              label="Client"
-              value={selectedCustomerId}
-              onChange={e => setSelectedCustomerId(e.target.value)}
-            >
-              <option value="">All Clients</option>
-              {customers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-            </Select>
-            <Select
-                label="Status"
-                value={status.length > 0 ? status[0] : ''}
-                onChange={e => setStatus(e.target.value ? [e.target.value as InvoiceStatus] : [])}
-            >
-                <option value="">All Statuses</option>
-                {Object.values(InvoiceStatus).map(s => <option key={s} value={s}>{s}</option>)}
-            </Select>
-          </div>
-        </FilterSection>
+        <UniversalSearchSort
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by invoice number, customer name, LR numbers, or status..."
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          sortOptions={sortOptions}
+          totalItems={invoices.length}
+          filteredItems={filteredInvoices.length}
+          onClearSearch={handleClearSearch}
+        />
       </Card>
 
       <Card>

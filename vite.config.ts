@@ -21,18 +21,20 @@ export default defineConfig(({ mode }) => {
         rollupOptions: {
           output: {
             manualChunks: {
-              vendor: ['react', 'react-dom'],
+              vendor: ['react', 'react-dom', 'react-router-dom'],
               pdf: ['jspdf', 'html2canvas'],
-              utils: ['xlsx', 'jszip', 'pako']
+              utils: ['xlsx', 'jszip', 'pako', 'axios']
             }
           }
         },
         terserOptions: {
           compress: {
             drop_console: true,
-            drop_debugger: true
+            drop_debugger: true,
+            pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn']
           }
-        }
+        },
+        chunkSizeWarningLimit: 1000
       },
       server: {
         port: 5173,

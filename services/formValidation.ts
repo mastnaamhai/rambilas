@@ -61,11 +61,26 @@ export const validateField = (value: any, rules: ValidationRule): string | null 
     return null;
 };
 
+// Helper function to get nested value from object
+const getNestedValue = (obj: any, path: string): any => {
+    return path.split('.').reduce((current, key) => {
+        if (current === null || current === undefined) return undefined;
+        if (key.includes('[') && key.includes(']')) {
+            // Handle array access like 'packages.0.description'
+            const [arrayKey, indexStr] = key.split('[');
+            const index = parseInt(indexStr.replace(']', ''), 10);
+            return current[arrayKey]?.[index];
+        }
+        return current[key];
+    }, obj);
+};
+
 export const validateForm = (data: any, rules: ValidationRules): ValidationErrors => {
     const errors: ValidationErrors = {};
 
     for (const [field, fieldRules] of Object.entries(rules)) {
-        const error = validateField(data[field], fieldRules);
+        const value = getNestedValue(data, field);
+        const error = validateField(value, fieldRules);
         if (error) {
             errors[field] = error;
         }
@@ -98,6 +113,159 @@ export const commonRules = {
         message: 'Must be a positive number' 
     },
     // Note: Backend validation with Zod schemas is the source of truth
+};
+
+// Enhanced validation rules for different field types
+export const fieldRules = {
+    // Text fields
+    name: { 
+        required: true, 
+        minLength: 2, 
+        maxLength: 100,
+        message: 'Name must be between 2 and 100 characters'
+    },
+    address: { 
+        required: true, 
+        minLength: 10, 
+        maxLength: 500,
+        message: 'Address must be between 10 and 500 characters'
+    },
+    city: { 
+        minLength: 2, 
+        maxLength: 50,
+        message: 'City must be between 2 and 50 characters'
+    },
+    pin: { 
+        pattern: /^[1-9][0-9]{5}$/, 
+        message: 'PIN code must be 6 digits starting with 1-9'
+    },
+    
+    // Contact fields
+    contactPhone: { 
+        pattern: /^[6-9]\d{9}$/, 
+        message: 'Contact phone must be 10 digits starting with 6-9'
+    },
+    contactEmail: { 
+        pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
+        message: 'Invalid email address'
+    },
+    
+    // Financial fields
+    amount: { 
+        required: true, 
+        min: 0.01, 
+        message: 'Amount must be greater than 0'
+    },
+    freightRate: { 
+        required: true, 
+        min: 0.01, 
+        message: 'Freight rate must be greater than 0'
+    },
+    advanceAmount: { 
+        min: 0, 
+        message: 'Advance amount cannot be negative'
+    },
+    
+    // Vehicle fields
+    vehicleNumber: { 
+        required: true, 
+        pattern: /^[A-Z]{2}[-\s]?[0-9]{2}[-\s]?[A-Z]{1,2}[-\s]?[0-9]{4}$/i,
+        message: 'Invalid vehicle number format (e.g., MH-12-AB-1234)'
+    },
+    vehicleCapacity: { 
+        required: true, 
+        min: 0.1, 
+        max: 100,
+        message: 'Vehicle capacity must be between 0.1 and 100 tons'
+    },
+    
+    // Package fields
+    packageDescription: { 
+        required: true, 
+        minLength: 5, 
+        maxLength: 200,
+        message: 'Package description must be between 5 and 200 characters'
+    },
+    actualWeight: { 
+        required: true, 
+        min: 0.01, 
+        max: 10000,
+        message: 'Weight must be between 0.01 and 10,000 kg'
+    },
+    chargedWeight: { 
+        required: true, 
+        min: 0.01, 
+        max: 10000,
+        message: 'Charged weight must be between 0.01 and 10,000 kg'
+    },
+    
+    // Date fields
+    date: { 
+        required: true, 
+        custom: (value: string) => {
+            if (!value || value.trim() === '') return 'Date is required';
+            const date = new Date(value + 'T00:00:00'); // Force local timezone
+            if (isNaN(date.getTime())) return 'Invalid date format';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (date > today) return 'Date cannot be in the future';
+            return null;
+        }
+    },
+    futureDate: { 
+        required: true, 
+        custom: (value: string) => {
+            if (!value) return 'Date is required';
+            const date = new Date(value);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (date < today) return 'Date cannot be in the past';
+            return null;
+        }
+    },
+    // Allow any valid date (past, present, or future) - useful for custom entries
+    anyDate: { 
+        required: true, 
+        custom: (value: string) => {
+            if (!value || value.trim() === '') return 'Date is required';
+            const date = new Date(value + 'T00:00:00'); // Force local timezone
+            if (isNaN(date.getTime())) return 'Invalid date format';
+            return null;
+        }
+    },
+    // Optional date that can be past, present, or future
+    optionalDate: { 
+        custom: (value: string) => {
+            if (!value || value.trim() === '') return null; // Allow empty
+            const date = new Date(value + 'T00:00:00'); // Force local timezone
+            if (isNaN(date.getTime())) return 'Invalid date format';
+            return null;
+        }
+    },
+    
+    // GST fields
+    gstRate: { 
+        min: 0, 
+        max: 100,
+        message: 'GST rate must be between 0 and 100%'
+    },
+    
+    // Reference fields
+    referenceNo: { 
+        minLength: 3, 
+        maxLength: 50,
+        message: 'Reference number must be between 3 and 50 characters'
+    },
+    
+    // Remarks/Notes
+    remarks: { 
+        maxLength: 1000,
+        message: 'Remarks cannot exceed 1000 characters'
+    },
+    notes: { 
+        maxLength: 500,
+        message: 'Notes cannot exceed 500 characters'
+    }
 };
 
 // Date validation helpers

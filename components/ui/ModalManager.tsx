@@ -14,15 +14,16 @@ export const ModalManager: React.FC = () => {
       highZElements.forEach(element => {
         const elementClasses = element.className;
         
-        // Check if it's a modal/overlay that should be closed
-        if (elementClasses.includes('fixed') && elementClasses.includes('inset-0')) {
-          // Skip PDF viewer - it should not be auto-closed
-          if (element.hasAttribute('data-pdf-viewer') ||
-              element.querySelector('iframe[src*=".pdf"]') || 
-              element.querySelector('iframe[title*="PDF"]') ||
-              element.querySelector('iframe[title*="pdf"]')) {
-            return; // Skip this element as it's a PDF viewer
-          }
+          // Check if it's a modal/overlay that should be closed
+          if (elementClasses.includes('fixed') && elementClasses.includes('inset-0')) {
+            // Skip legitimate form modals and PDF viewers - they should not be auto-closed
+            if (element.hasAttribute('data-form-modal') ||
+                element.hasAttribute('data-pdf-viewer') ||
+                element.querySelector('iframe[src*=".pdf"]') || 
+                element.querySelector('iframe[title*="PDF"]') ||
+                element.querySelector('iframe[title*="pdf"]')) {
+              return; // Skip this element as it's a legitimate modal
+            }
           
           // Check if it's visible but shouldn't be
           const computedStyle = window.getComputedStyle(element);
@@ -85,12 +86,13 @@ export const ModalManager: React.FC = () => {
         // Reset body overflow
         document.body.style.overflow = 'unset';
         
-        // Remove all high z-index overlays (except PDF viewers)
+        // Remove all high z-index overlays (except legitimate modals and PDF viewers)
         const overlays = document.querySelectorAll('[class*="z-50"], [class*="z-40"]');
         overlays.forEach(overlay => {
           if (overlay.className.includes('fixed') && overlay.className.includes('inset-0')) {
-            // Don't remove PDF viewers even in emergency close
-            if (!overlay.hasAttribute('data-pdf-viewer') &&
+            // Don't remove legitimate form modals and PDF viewers even in emergency close
+            if (!overlay.hasAttribute('data-form-modal') &&
+                !overlay.hasAttribute('data-pdf-viewer') &&
                 !overlay.querySelector('iframe[src*=".pdf"]') &&
                 !overlay.querySelector('iframe[title*="PDF"]') &&
                 !overlay.querySelector('iframe[title*="pdf"]')) {

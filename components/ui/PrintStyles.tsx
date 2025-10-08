@@ -234,18 +234,20 @@ export const PrintStyles: React.FC<PrintStylesProps> = ({
             scale: none !important;
             margin: 0 !important;
             padding: 0 !important;
+            font-family: Arial, sans-serif !important;
+            line-height: 1.4 !important;
           }
           
           .lr-container {
             page-break-inside: avoid !important;
             margin-bottom: 20px !important;
             border: 2px solid #000 !important;
-            padding: 8px !important;
+            padding: 12px !important;
           }
           
           .lr-header {
             page-break-inside: avoid !important;
-            margin-bottom: 8px !important;
+            margin-bottom: 12px !important;
           }
           
           .lr-body {
@@ -254,7 +256,83 @@ export const PrintStyles: React.FC<PrintStylesProps> = ({
           
           .lr-footer {
             page-break-inside: avoid !important;
-            margin-top: 8px !important;
+            margin-top: 12px !important;
+          }
+          
+          /* Typography improvements for LR PDFs */
+          .lr-container h1, .lr-container h2, .lr-container h3, .lr-container h4 {
+            font-weight: bold !important;
+            margin-bottom: 8px !important;
+            page-break-after: avoid !important;
+          }
+          
+          .lr-container h1 {
+            font-size: 16px !important;
+          }
+          
+          .lr-container h2 {
+            font-size: 14px !important;
+          }
+          
+          .lr-container h3 {
+            font-size: 12px !important;
+          }
+          
+          .lr-container h4 {
+            font-size: 11px !important;
+          }
+          
+          .lr-container p, .lr-container div {
+            font-size: 11px !important;
+            line-height: 1.4 !important;
+            margin-bottom: 4px !important;
+          }
+          
+          .lr-container .text-xs {
+            font-size: 10px !important;
+          }
+          
+          .lr-container .text-sm {
+            font-size: 11px !important;
+          }
+          
+          .lr-container .text-base {
+            font-size: 12px !important;
+          }
+          
+          .lr-container .text-lg {
+            font-size: 14px !important;
+          }
+          
+          .lr-container .text-xl {
+            font-size: 16px !important;
+          }
+          
+          /* Table typography */
+          .lr-container table {
+            font-size: 11px !important;
+          }
+          
+          .lr-container th, .lr-container td {
+            font-size: 11px !important;
+            padding: 6px 8px !important;
+          }
+          
+          /* Ensure proper spacing between sections */
+          .lr-container .mb-1 {
+            margin-bottom: 8px !important;
+          }
+          
+          .lr-container .mb-2 {
+            margin-bottom: 12px !important;
+          }
+          
+          .lr-container .mb-3 {
+            margin-bottom: 16px !important;
+          }
+          
+          .lr-container .mb-4 {
+            margin-bottom: 20px !important;
           }
         ` : ''}
         

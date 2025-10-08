@@ -8,7 +8,7 @@ const CustomerSchema = new Schema({
   tradeName: { type: String },
   address: { type: String, required: true },
   state: { type: String, required: true },
-  gstin: { type: String },
+  gstin: { type: String, unique: true, sparse: true }, // Unique but allow null values
   contactPerson: { type: String },
   contactPhone: { type: String },
   contactEmail: { type: String },
@@ -16,6 +16,13 @@ const CustomerSchema = new Schema({
   pin: { type: String },
   phone: { type: String },
   email: { type: String },
+  // Add metadata for GSTIN caching
+  gstinLastVerified: { type: Date },
+  gstinSource: { type: String, enum: ['api', 'manual'], default: 'manual' },
+}, {
+  timestamps: true // Adds createdAt and updatedAt
 });
+
+// Note: GSTIN index is automatically created by unique: true in schema
 
 export default model<ICustomer>('Customer', CustomerSchema);

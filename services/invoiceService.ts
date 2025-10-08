@@ -3,7 +3,8 @@ import type { Invoice } from '../types';
 
 
 export const getInvoices = async (): Promise<Invoice[]> => {
-    const response = await fetch(`${API_BASE_URL}/invoices`);
+    // Fetch all invoices by setting a high limit
+    const response = await fetch(`${API_BASE_URL}/invoices?limit=1000`);
     if (!response.ok) {
         throw new Error('Failed to fetch invoices');
     }

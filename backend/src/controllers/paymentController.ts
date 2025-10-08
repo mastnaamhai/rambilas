@@ -4,7 +4,7 @@ import Payment from '../models/payment';
 import Invoice from '../models/invoice';
 import TruckHiringNote from '../models/truckHiringNote';
 import { updateInvoiceStatus } from '../utils/invoiceUtils';
-import { getNextSequenceValue } from '../utils/sequence';
+import NumberingConfig from '../models/numbering';
 import { THNStatus } from '../types';
 import mongoose from 'mongoose';
 // THN status update function
@@ -98,7 +98,14 @@ export const createPayment = asyncHandler(async (req: Request, res: Response) =>
     const { invoiceId, truckHiringNoteId } = paymentData;
 
     // Generate payment number
-    const paymentNumber = await getNextSequenceValue('paymentId');
+    // Generate payment number
+    let paymentNumber = Date.now(); // Fallback
+    const config = await NumberingConfig.findOne({ type: 'paymentId' });
+    if (config) {
+      paymentNumber = config.currentNumber;
+      config.currentNumber = config.currentNumber + 1;
+      await config.save();
+    }
     
     const payment = new Payment({
       ...paymentData,

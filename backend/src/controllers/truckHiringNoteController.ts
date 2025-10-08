@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import TruckHiringNote from '../models/truckHiringNote';
 import Payment from '../models/payment';
-import { getNextSequenceValue } from '../utils/sequence';
+import NumberingConfig from '../models/numbering';
 import { createTruckHiringNoteSchema, updateTruckHiringNoteSchema } from '../utils/validation';
 import { THNStatus, PaymentType, PaymentMode } from '../types';
 
@@ -29,7 +29,14 @@ export const createTruckHiringNote = asyncHandler(async (req: Request, res: Resp
     const noteData = createTruckHiringNoteSchema.parse(req.body);
     console.log('Validated data:', JSON.stringify(noteData, null, 2));
     
-    const nextThnNumber = await getNextSequenceValue('truckHiringNoteId');
+    // Generate THN number
+    let nextThnNumber = Date.now(); // Fallback
+    const config = await NumberingConfig.findOne({ type: 'truckHiringNoteId' });
+    if (config) {
+      nextThnNumber = config.currentNumber;
+      config.currentNumber = config.currentNumber + 1;
+      await config.save();
+    }
     console.log('Generated THN number:', nextThnNumber);
     
     const totalAmount = noteData.freightRate + (noteData.additionalCharges || 0);
@@ -63,7 +70,14 @@ export const createTruckHiringNote = asyncHandler(async (req: Request, res: Resp
       try {
         console.log(`Creating advance payment record for THN ${newNote.thnNumber} with amount ${advanceAmount}`);
         
-        const paymentNumber = await getNextSequenceValue('paymentId');
+        // Generate payment number
+        let paymentNumber = Date.now(); // Fallback
+        const paymentConfig = await NumberingConfig.findOne({ type: 'paymentId' });
+        if (paymentConfig) {
+          paymentNumber = paymentConfig.currentNumber;
+          paymentConfig.currentNumber = paymentConfig.currentNumber + 1;
+          await paymentConfig.save();
+        }
         
         const advancePayment = new Payment({
           paymentNumber,
@@ -190,7 +204,14 @@ export const updateTruckHiringNote = asyncHandler(async (req: Request, res: Resp
         } else {
           // Create new advance payment record
           try {
-            const paymentNumber = await getNextSequenceValue('paymentId');
+            // Generate payment number
+        let paymentNumber = Date.now(); // Fallback
+        const paymentConfig = await NumberingConfig.findOne({ type: 'paymentId' });
+        if (paymentConfig) {
+          paymentNumber = paymentConfig.currentNumber;
+          paymentConfig.currentNumber = paymentConfig.currentNumber + 1;
+          await paymentConfig.save();
+        }
             
             const advancePayment = new Payment({
               paymentNumber,

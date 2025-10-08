@@ -1,13 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { TruckHiringNote, CompanyInfo } from '../types';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import { Select } from './ui/Select';
+import { ValidatedInput } from './ui/ValidatedInput';
+import { ValidatedSelect } from './ui/ValidatedSelect';
+import { ValidatedTextarea } from './ui/ValidatedTextarea';
 import { AutocompleteInput } from './ui/AutocompleteInput';
 import { getCurrentDate } from '../services/utils';
 import { commonCities } from '../constants/formData';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { fieldRules } from '../services/formValidation';
 
 interface TruckHiringNoteFormProps {
     existingNote?: TruckHiringNote;
@@ -16,7 +21,7 @@ interface TruckHiringNoteFormProps {
     onCancel: () => void;
 }
 
-export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existingNote, companyInfo, onSave, onCancel }) => {
+export const TruckHiringNoteForm = ({ existingNote, companyInfo, onSave, onCancel }: TruckHiringNoteFormProps) => {
     const getInitialState = (): Partial<Omit<TruckHiringNote, '_id' | 'thnNumber' | 'balanceAmount' | 'paidAmount' | 'payments' | 'status'>> => ({
         date: getCurrentDate(),
         truckNumber: '',
@@ -43,8 +48,49 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
 
     const [note, setNote] = useState(existingNote || getInitialState());
     const [isSaving, setIsSaving] = useState(false);
-    const [errors, setErrors] = useState<Record<string, string>>({});
     const formRef = useRef<HTMLFormElement>(null);
+
+    // Validation rules for THN form
+    const validationRules = {
+        date: fieldRules.date,
+        truckNumber: fieldRules.vehicleNumber,
+        truckType: { required: true, message: 'Truck type is required' },
+        vehicleCapacity: fieldRules.vehicleCapacity,
+        loadingLocation: { required: true, minLength: 2, message: 'Loading location is required' },
+        unloadingLocation: { required: true, minLength: 2, message: 'Unloading location is required' },
+        loadingDateTime: { required: true, message: 'Loading date & time is required' },
+        expectedDeliveryDate: fieldRules.futureDate,
+        goodsType: { required: true, minLength: 2, message: 'Type of goods is required' },
+        agencyName: { required: true, minLength: 2, message: 'Agency name is required' },
+        truckOwnerName: { required: true, minLength: 2, message: 'Truck owner name is required' },
+        truckOwnerContact: { 
+            pattern: /^[6-9]\d{9}$/, 
+            message: 'Contact number must be 10 digits starting with 6-9' 
+        },
+        freightRate: fieldRules.freightRate,
+        additionalCharges: { min: 0, message: 'Additional charges cannot be negative' },
+        advanceAmount: fieldRules.advanceAmount,
+        paymentMode: { required: true, message: 'Payment mode is required' },
+        paymentTerms: { maxLength: 500, message: 'Payment terms cannot exceed 500 characters' },
+        linkedLR: { maxLength: 50, message: 'Linked LR number cannot exceed 50 characters' },
+        linkedInvoice: { maxLength: 50, message: 'Linked invoice number cannot exceed 50 characters' },
+        remarks: fieldRules.remarks
+    };
+
+    // Form validation hook
+    const {
+        errors,
+        isValid,
+        validateForm: validateEntireForm,
+        setFieldError,
+        clearFieldError,
+        setErrors
+    } = useFormValidation({
+        validationRules,
+        validateOnChange: true,
+        validateOnBlur: true,
+        validateOnSubmit: true
+    });
 
     // Common truck types
     const truckTypes = [
@@ -76,47 +122,44 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
 
     // Validation function
     const validateForm = (): boolean => {
-        const newErrors: Record<string, string> = {};
+        const formErrors = validateEntireForm(note);
         
-        if (!note.date) newErrors.date = 'Date is required';
-        if (!note.truckNumber?.trim()) newErrors.truckNumber = 'Truck number is required';
-        if (!note.truckType?.trim()) newErrors.truckType = 'Truck type is required';
-        if (!note.vehicleCapacity || note.vehicleCapacity <= 0) newErrors.vehicleCapacity = 'Vehicle capacity must be greater than 0';
-        if (!note.loadingLocation?.trim()) newErrors.loadingLocation = 'Loading location is required';
-        if (!note.unloadingLocation?.trim()) newErrors.unloadingLocation = 'Unloading location is required';
-        if (!note.loadingDateTime) newErrors.loadingDateTime = 'Loading date & time is required';
-        if (!note.expectedDeliveryDate) newErrors.expectedDeliveryDate = 'Expected delivery date is required';
-        if (!note.goodsType?.trim()) newErrors.goodsType = 'Type of goods is required';
-        if (!note.agencyName?.trim()) newErrors.agencyName = 'Agency name is required';
-        if (!note.truckOwnerName?.trim()) newErrors.truckOwnerName = 'Truck owner name is required';
-        if (!note.freightRate || note.freightRate <= 0) newErrors.freightRate = 'Freight rate is required';
-        if (!note.paymentMode?.trim()) newErrors.paymentMode = 'Payment mode is required';
-        // Payment terms are now optional
+        // Additional custom validations
+        const customErrors: Record<string, string> = {};
         
         // Validate dates
         if (note.loadingDateTime && note.expectedDeliveryDate) {
             const loadingDate = new Date(note.loadingDateTime);
             const deliveryDate = new Date(note.expectedDeliveryDate);
             if (deliveryDate < loadingDate) {
-                newErrors.expectedDeliveryDate = 'Delivery date cannot be before loading date';
+                customErrors.expectedDeliveryDate = 'Delivery date cannot be before loading date';
             }
         }
         
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        // Merge all errors
+        const allErrors = { ...formErrors, ...customErrors };
+        setErrors(allErrors);
+        
+        return Object.keys(allErrors).length === 0;
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
         
         // Clear error for this field
-        if (errors[name]) {
-            setErrors(prev => ({ ...prev, [name]: '' }));
-        }
+        clearFieldError(name);
         
         setNote(prev => ({
             ...prev,
             [name]: type === 'number' ? parseFloat(value) || 0 : value,
+        }));
+    };
+
+    const handleValueChange = (fieldName: string, value: any) => {
+        clearFieldError(fieldName);
+        setNote(prev => ({
+            ...prev,
+            [fieldName]: value,
         }));
     };
 
@@ -147,7 +190,7 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
     const balanceAmount = (note.freightRate || 0) + (note.additionalCharges || 0) - (note.advanceAmount || 0);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto" data-form-modal="true">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form ref={formRef} onSubmit={handleSubmit}>
                     <Card title={existingNote ? `Edit Truck Hiring Note #${existingNote.thnNumber}` : 'Create New Truck Hiring Note'}>
@@ -157,44 +200,40 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
                                 <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Basic Information</h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <Input 
-                                        label="Date" 
-                                        name="date" 
-                                        type="date" 
-                                        value={note.date || ''} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.date}
+                                    <ValidatedInput
+                                        fieldName="date"
+                                        validationRules={validationRules}
+                                        value={note.date || ''}
+                                        onValueChange={(value) => handleValueChange('date', value)}
+                                        type="date"
+                                        required
                                     />
-                                    <Input 
-                                        label="Truck Number" 
-                                        name="truckNumber" 
-                                        value={note.truckNumber || ''} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.truckNumber}
+                                    <ValidatedInput
+                                        fieldName="truckNumber"
+                                        validationRules={validationRules}
+                                        value={note.truckNumber || ''}
+                                        onValueChange={(value) => handleValueChange('truckNumber', value)}
+                                        required
                                         placeholder="e.g., MH-12-AB-1234"
                                     />
-                                    <Select 
-                                        label="Truck Type" 
-                                        name="truckType" 
-                                        value={note.truckType || ''} 
-                                        onChange={handleChange}
+                                    <ValidatedSelect
+                                        fieldName="truckType"
+                                        validationRules={validationRules}
+                                        value={note.truckType || ''}
+                                        onValueChange={(value) => handleValueChange('truckType', value)}
                                         options={truckTypes.map(type => ({ value: type, label: type }))}
-                                        required 
-                                        error={errors.truckType}
+                                        required
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <Input 
-                                        label="Vehicle Capacity (tons)" 
-                                        name="vehicleCapacity" 
-                                        type="number" 
-                                        value={note.vehicleCapacity || 0} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.vehicleCapacity}
+                                    <ValidatedInput
+                                        fieldName="vehicleCapacity"
+                                        validationRules={validationRules}
+                                        value={note.vehicleCapacity || 0}
+                                        onValueChange={(value) => handleValueChange('vehicleCapacity', value)}
+                                        type="number"
+                                        required
                                         min="0"
                                         step="0.1"
                                     />
@@ -210,22 +249,21 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-700 cursor-not-allowed"
                                         />
                                     </div>
-                                    <Input 
-                                        label="Truck Owner/Operator Name" 
-                                        name="truckOwnerName" 
-                                        value={note.truckOwnerName || ''} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.truckOwnerName}
+                                    <ValidatedInput
+                                        fieldName="truckOwnerName"
+                                        validationRules={validationRules}
+                                        value={note.truckOwnerName || ''}
+                                        onValueChange={(value) => handleValueChange('truckOwnerName', value)}
+                                        required
                                         placeholder="Enter truck owner name"
                                     />
                                 </div>
 
-                                <Input 
-                                    label="Truck Owner Contact (Optional)" 
-                                    name="truckOwnerContact" 
-                                    value={note.truckOwnerContact || ''} 
-                                    onChange={handleChange} 
+                                <ValidatedInput
+                                    fieldName="truckOwnerContact"
+                                    validationRules={validationRules}
+                                    value={note.truckOwnerContact || ''}
+                                    onValueChange={(value) => handleValueChange('truckOwnerContact', value)}
                                     placeholder="Enter contact number"
                                 />
                             </div>
@@ -321,14 +359,13 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
                                 <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">Freight Details</h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <Input 
-                                        label="Freight Rate (₹)" 
-                                        name="freightRate" 
-                                        type="number" 
-                                        value={note.freightRate || 0} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.freightRate}
+                                    <ValidatedInput
+                                        fieldName="freightRate"
+                                        validationRules={validationRules}
+                                        value={note.freightRate || 0}
+                                        onValueChange={(value) => handleValueChange('freightRate', value)}
+                                        type="number"
+                                        required
                                         min="0"
                                         step="0.01"
                                     />
@@ -344,12 +381,12 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
                                         ]}
                                         required 
                                     />
-                                    <Input 
-                                        label="Additional Charges (₹)" 
-                                        name="additionalCharges" 
-                                        type="number" 
-                                        value={note.additionalCharges || 0} 
-                                        onChange={handleChange} 
+                                    <ValidatedInput
+                                        fieldName="additionalCharges"
+                                        validationRules={validationRules}
+                                        value={note.additionalCharges || 0}
+                                        onValueChange={(value) => handleValueChange('additionalCharges', value)}
+                                        type="number"
                                         min="0"
                                         step="0.01"
                                         placeholder="e.g., detention charges"
@@ -439,12 +476,12 @@ export const TruckHiringNoteForm: React.FC<TruckHiringNoteFormProps> = ({ existi
                                     />
                                 </div>
 
-                                <Textarea 
-                                    label="Remarks" 
-                                    name="remarks" 
-                                    value={note.remarks || ''} 
-                                    onChange={handleChange} 
-                                    rows={3} 
+                                <ValidatedTextarea
+                                    fieldName="remarks"
+                                    validationRules={validationRules}
+                                    value={note.remarks || ''}
+                                    onValueChange={(value) => handleValueChange('remarks', value)}
+                                    rows={3}
                                     placeholder="Any special instructions or notes..."
                                 />
                             </div>

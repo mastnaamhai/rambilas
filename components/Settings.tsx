@@ -7,10 +7,9 @@ import { Select } from './ui/Select';
 import { Textarea } from './ui/Textarea';
 import { LogoUpload } from './ui/LogoUpload';
 import { BankAccountManager } from './ui/BankAccountManager';
-import { exportToCsv } from '../services/exportService';
-import { NumberingSettings } from './NumberingSettings';
-import { EnhancedExportInterface } from './EnhancedExportInterface';
-import { formatDate } from '../services/utils';
+import { ExportHub } from './ExportHub';
+import { SimpleNumberingSettings } from './SimpleNumberingSettings';
+import { ApiKeyManager } from './ApiKeyManager';
 import { indianStates } from '../constants';
 import { useCompanyInfo } from '../hooks/useCompanyInfo';
 
@@ -21,7 +20,9 @@ interface SettingsProps {
   customers: Customer[];
   truckHiringNotes: TruckHiringNote[];
   onPasswordChange: (currentPassword: string, newPassword: string) => Promise<{success: boolean, message: string}>;
-  onResetData: () => Promise<void>;
+  onResetData: (password: string) => Promise<void>;
+  onResetBusinessData?: (password: string) => Promise<void>;
+  onResetAllData?: (password: string) => Promise<void>;
   onBackup: () => Promise<void>;
   onRestore: (data: any) => Promise<void>;
   onBack: () => void;
@@ -173,51 +174,6 @@ const BankAccountSection: React.FC = () => {
     );
 };
 
-const BackupExport: React.FC<Pick<SettingsProps, 'lorryReceipts' | 'invoices' | 'truckHiringNotes'>> = (props) => {
-
-    const handleExportLrs = () => {
-        const data = props.lorryReceipts.map(lr => ({
-            'LR No': lr.lrNumber, 'Date': formatDate(lr.date), 'Consignor': lr.consignor?.name, 'Consignee': lr.consignee?.name,
-             'Vehicle No': lr.vehicle?.number, 'From': lr.from, 'To': lr.to, 'Amount': lr.totalAmount, 'Status': lr.status
-        }));
-        exportToCsv(data, 'lorry-receipts');
-    };
-
-    const handleExportInvoices = () => {
-        const data = props.invoices.map(inv => ({
-            'Invoice No': inv.invoiceNumber, 'Date': formatDate(inv.date), 'Customer': inv.customer?.name,
-            'Amount': inv.totalAmount, 'GST': inv.gstType, 'Grand Total': inv.grandTotal, 'Status': inv.status
-        }));
-        exportToCsv(data, 'invoices');
-    };
-
-    const handleExportTHNs = () => {
-        const data = props.truckHiringNotes.map(thn => ({
-            'THN No': thn.thnNumber, 'Date': formatDate(thn.date), 'Customer': thn.customer?.name,
-            'Vehicle': thn.vehicleNumber, 'From': thn.from, 'To': thn.to, 'Freight': thn.freightRate, 'Status': thn.status
-        }));
-        exportToCsv(data, 'truck-hiring-notes');
-    };
-
-    return (
-        <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800">Export Data</h3>
-            <Card title="Export to CSV">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button variant="secondary" onClick={handleExportLrs}>
-                        Export Lorry Receipts ({props.lorryReceipts.length})
-                    </Button>
-                    <Button variant="secondary" onClick={handleExportInvoices}>
-                        Export Invoices ({props.invoices.length})
-                    </Button>
-                    <Button variant="secondary" onClick={handleExportTHNs}>
-                        Export THNs ({props.truckHiringNotes.length})
-                    </Button>
-                </div>
-            </Card>
-        </div>
-    );
-};
 
 const ChangePasswordForm: React.FC<{ onPasswordChange: SettingsProps['onPasswordChange'] }> = ({ onPasswordChange }) => {
     const [currentPassword, setCurrentPassword] = useState('');
@@ -272,93 +228,6 @@ const ChangePasswordForm: React.FC<{ onPasswordChange: SettingsProps['onPassword
     );
 };
 
-const DataManagement: React.FC<{ onResetData: () => void, onBackup: () => void, onRestore: (data: any) => void }> = ({ onResetData, onBackup, onRestore }) => {
-    const [isLoading, setIsLoading] = useState(false);
-    const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-    const handleReset = async () => {
-        if (window.confirm('Are you sure you want to reset all application data? This action cannot be undone.')) {
-            setIsLoading(true);
-            await onResetData();
-            setIsLoading(false);
-        }
-    };
-
-    const handleBackup = async () => {
-        setIsLoading(true);
-        await onBackup();
-        setIsLoading(false);
-    };
-
-    const handleRestoreClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-
-        const confirmation = window.confirm(
-            'This action will delete all existing data and replace it with the uploaded backup. This cannot be undone. Are you sure you want to proceed?'
-        );
-
-        if (confirmation) {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const content = e.target?.result;
-                    if (typeof content === 'string') {
-                        const data = JSON.parse(content);
-                        setIsLoading(true);
-                        await onRestore(data);
-                        setIsLoading(false);
-                    }
-                } catch (error) {
-                    console.error('Error parsing backup file:', error);
-                    alert('Error parsing backup file. Please ensure it is a valid JSON file.');
-                }
-            };
-            reader.readAsText(file);
-        }
-    };
-
-    return (
-        <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800">Data Management</h3>
-            <Card title="Backup & Restore">
-                <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        <Button onClick={handleBackup} variant="secondary" disabled={isLoading}>
-                            {isLoading ? 'Creating...' : 'Create Backup'}
-                        </Button>
-                        <Button onClick={handleRestoreClick} variant="secondary" disabled={isLoading}>
-                            {isLoading ? 'Restoring...' : 'Restore from Backup'}
-                        </Button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".json"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
-                    </div>
-                    <p className="text-sm text-gray-500">
-                        Create a backup of all your data or restore from a previous backup file.
-                    </p>
-                </div>
-            </Card>
-            <Card title="Reset Data">
-                <div className="pt-4 border-t">
-                    <h4 className="font-semibold text-lg text-red-700">Reset Application Data</h4>
-                    <p className="text-sm text-gray-500 mb-2">Permanently delete all data from the application, including all clients, lorry receipts, invoices, and payments. This is irreversible.</p>
-                    <Button onClick={handleReset} variant="destructive" disabled={isLoading}>
-                        {isLoading ? 'Resetting...' : 'Reset All Data'}
-                    </Button>
-                </div>
-            </Card>
-        </div>
-    );
-};
 
 export const Settings: React.FC<SettingsProps> = (props) => {
   const [activeTab, setActiveTab] = useState('info');
@@ -366,10 +235,9 @@ export const Settings: React.FC<SettingsProps> = (props) => {
   const tabs = [
       { key: 'info', label: 'Company Info' },
       { key: 'bank', label: 'Bank Accounts' },
-      { key: 'export', label: 'Enhanced Export' },
-      { key: 'legacy-export', label: 'Legacy Export' },
+      { key: 'export', label: 'Export & Backup' },
       { key: 'security', label: 'Security' },
-      { key: 'data', label: 'Data Management' },
+      { key: 'apikeys', label: 'API Keys' },
       { key: 'numbering', label: 'Numbering' },
   ];
 
@@ -395,11 +263,10 @@ export const Settings: React.FC<SettingsProps> = (props) => {
         <div className="mt-6">
             {activeTab === 'info' && <CompanyInfoForm />}
             {activeTab === 'bank' && <BankAccountSection />}
-            {activeTab === 'export' && <EnhancedExportInterface customers={props.customers} lorryReceipts={props.lorryReceipts} invoices={props.invoices} payments={props.payments} truckHiringNotes={props.truckHiringNotes} />}
-            {activeTab === 'legacy-export' && <BackupExport lorryReceipts={props.lorryReceipts} invoices={props.invoices} truckHiringNotes={props.truckHiringNotes} />}
+            {activeTab === 'export' && <ExportHub {...props} />}
             {activeTab === 'security' && <ChangePasswordForm onPasswordChange={props.onPasswordChange} />}
-            {activeTab === 'data' && <DataManagement onResetData={props.onResetData} onBackup={props.onBackup} onRestore={props.onRestore} />}
-            {activeTab === 'numbering' && <NumberingSettings />}
+            {activeTab === 'apikeys' && <ApiKeyManager />}
+            {activeTab === 'numbering' && <SimpleNumberingSettings />}
         </div>
     </Card>
   );

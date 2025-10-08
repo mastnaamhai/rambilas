@@ -26,6 +26,11 @@ export const createCustomer = async (customer: Omit<Customer, 'id'>): Promise<Cu
         body: JSON.stringify(customer),
     });
     if (!response.ok) {
+        if (response.status === 409) {
+            // Handle duplicate GSTIN case
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Customer with this GSTIN already exists');
+        }
         throw new Error('Failed to create customer');
     }
     return response.json();

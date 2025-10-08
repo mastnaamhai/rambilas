@@ -53,6 +53,7 @@ export const BottomSheet: React.FC<BottomSheetProps> = ({
       <div 
         className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300"
         onClick={onClose}
+        data-form-modal="true"
       />
       
       {/* Bottom Sheet */}

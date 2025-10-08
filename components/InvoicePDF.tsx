@@ -202,7 +202,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                 .invoice-table th:nth-child(8), .invoice-table td:nth-child(8) { width: 5%; } /* Packages */
                 .invoice-table th:nth-child(9), .invoice-table td:nth-child(9) { width: 6%; } /* Weight */
                 .invoice-table th:nth-child(10), .invoice-table td:nth-child(10) { width: 8%; } /* Material */
-                .invoice-table th:nth-child(11), .invoice-table td:nth-child(11) { width: 8%; } /* Total Amount */
+                .invoice-table th:nth-child(11), .invoice-table td:nth-child(11) { width: 8%; } /* Total Charges */
                 .invoice-table th:nth-child(12), .invoice-table td:nth-child(12) { width: 7%; } /* Taxable Amount */
                 /* Dynamic GST columns - flexible width based on available columns */
                 .invoice-table th:last-child, .invoice-table td:last-child { width: 7%; } /* Total - always last */
@@ -413,7 +413,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                             <th className="p-2 border border-gray-300 text-right font-semibold">Packages</th>
                             <th className="p-2 border border-gray-300 text-right font-semibold">Weight (kg)</th>
                             <th className="p-2 border border-gray-300 text-center font-semibold">Material</th>
-                            <th className="p-2 border border-gray-300 text-right font-semibold">Total Amount (₹)</th>
+                            <th className="p-2 border border-gray-300 text-right font-semibold">Total Charges (₹)</th>
                             <th className="p-2 border border-gray-300 text-right font-semibold">Taxable Amount (₹)</th>
                             {invoice.gstType === GstType.CGST_SGST && (invoice.sgstAmount || 0) > 0 && (
                                 <th className="p-2 border border-gray-300 text-right font-semibold gst-column">SGST (₹)</th>
@@ -434,6 +434,12 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                             const weight = (lr.packages || []).reduce((sum, p) => sum + (p.chargedWeight || 0), 0);
                             const material = (lr.packages || []).map(p => p.description).join(', ') || '-';
                             const freightCharges = lr.charges?.freight || 0;
+                            const aoc = lr.charges?.aoc || 0;
+                            const hamali = lr.charges?.hamali || 0;
+                            const bCh = lr.charges?.bCh || 0;
+                            const trCh = lr.charges?.trCh || 0;
+                            const detentionCh = lr.charges?.detentionCh || 0;
+                            const totalCharges = freightCharges + aoc + hamali + bCh + trCh + detentionCh;
                             const taxableAmount = lr.totalAmount || 0;
                             
                             // Calculate GST amounts for this LR (proportional to total invoice)
@@ -466,7 +472,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                                     <td className="p-2 border border-gray-300 text-right text-xs">{weight.toLocaleString('en-IN')}</td>
                                     <td className="p-2 border border-gray-300 text-center text-xs" title={material}>{material}</td>
                                     <td className="p-2 border border-gray-300 text-right text-xs">
-                                        {(lr.totalAmount || 0).toLocaleString('en-IN')}
+                                        {totalCharges.toLocaleString('en-IN')}
                                     </td>
                                     <td className="p-2 border border-gray-300 text-right text-xs">{taxableAmount.toLocaleString('en-IN')}</td>
                                     {invoice.gstType === GstType.CGST_SGST && (invoice.sgstAmount || 0) > 0 && (
@@ -573,28 +579,10 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                                 <span>₹{totalFreight.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                         )}
-                        {!invoice.isRcm && (
-                            <>
-                                {invoice.gstType === GstType.CGST_SGST && (
-                                    <>
-                                        <div className="flex justify-between">
-                                            <span>Add CGST @ {invoice.cgstRate || 0}%{invoice.isManualGst && <em className="text-xs ml-1">(Manual)</em>}:</span>
-                                            <span>{(invoice.cgstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Add SGST @ {invoice.sgstRate || 0}%{invoice.isManualGst && <em className="text-xs ml-1">(Manual)</em>}:</span>
-                                            <span>{(invoice.sgstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                        </div>
-                                    </>
-                                )}
-                                {invoice.gstType === GstType.IGST && (
-                                    <div className="flex justify-between">
-                                        <span>Add IGST @ {invoice.igstRate || 0}%{invoice.isManualGst && <em className="text-xs ml-1">(Manual)</em>}:</span>
-                                        <span>{(invoice.igstAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </div>
-                                )}
-                            </>
-                        )}
+                        <div className="flex justify-between">
+                            <span>Taxable Amount:</span>
+                            <span>{(invoice.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
                         <div className="flex justify-between font-bold border-t-2 border-b-2 border-black py-1 text-base">
                             <span>Grand Total:</span>
                             <span>{(invoice.grandTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -623,8 +611,8 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                             <div className="text-center leading-tight">
                                 <p className="font-bold">ALL INDIA</p>
                                 <p className="font-bold text-xs">LOGISTICS</p>
-                                <p className="text-xs">CHENNAI</p>
-                                <p className="text-xs">600 066</p>
+                                <p className="text-xs">MUMBAI</p>
+                                <p className="text-xs">400 001</p>
                             </div>
                         </div>
                     </div>

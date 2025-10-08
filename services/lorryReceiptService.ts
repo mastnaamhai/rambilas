@@ -3,7 +3,8 @@ import type { LorryReceipt } from '../types';
 
 
 export const getLorryReceipts = async (): Promise<LorryReceipt[]> => {
-    const response = await fetch(`${API_BASE_URL}/lorryreceipts`);
+    // Fetch all lorry receipts by setting a high limit
+    const response = await fetch(`${API_BASE_URL}/lorryreceipts?limit=1000`);
     if (!response.ok) {
         throw new Error('Failed to fetch lorry receipts');
     }

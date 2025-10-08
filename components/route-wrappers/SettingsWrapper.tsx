@@ -1,8 +1,7 @@
-import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Settings } from '../Settings';
 
-export const SettingsWrapper: React.FC = () => {
+export const SettingsWrapper = () => {
   const context = useOutletContext<any>();
   
   return (
@@ -14,6 +13,8 @@ export const SettingsWrapper: React.FC = () => {
       truckHiringNotes={context.truckHiringNotes}
       onPasswordChange={context.handleChangePassword}
       onResetData={context.handleResetData}
+      onResetBusinessData={context.handleResetBusinessData}
+      onResetAllData={context.handleResetAllData}
       onBackup={context.handleBackup}
       onRestore={context.handleRestore}
       onBack={() => context.navigate('/dashboard')}

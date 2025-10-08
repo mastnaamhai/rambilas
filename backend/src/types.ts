@@ -45,10 +45,11 @@ export enum PaymentMode {
 }
 
 export enum RiskBearer {
-    TRANSPORTER = 'Transporter',
-    CARRIER = 'Carrier',
-    OWNER = 'Owner',
-    CONSIGNOR = 'Consignor',
+    CARRIER = "AT CARRIER'S RISK",
+    OWNER = "AT OWNER'S RISK",
+    // Legacy values for backward compatibility
+    LEGACY_CARRIER = "Carrier",
+    LEGACY_OWNER = "Owner",
 }
 
 export interface Customer {
@@ -197,60 +198,3 @@ export interface TruckHiringNote {
   payments: Payment[];
 }
 
-// Additional types for components
-export interface PromissoryNote {
-  _id: string;
-  noteNumber: number;
-  date: string;
-  customerId: string;
-  customer?: Customer;
-  amount: number;
-  dueDate: string;
-  status: 'Pending' | 'Paid' | 'Overdue';
-  remarks?: string;
-}
-
-export interface Supplier {
-  _id: string;
-  name: string;
-  contactPerson?: string;
-  phone?: string;
-  email?: string;
-  address?: string;
-  gstin?: string;
-}
-
-export interface TruckRental {
-  _id: string;
-  rentalNumber: number;
-  date: string;
-  supplierId: string;
-  supplier?: Supplier;
-  vehicleNumber: string;
-  rentalType: 'Daily' | 'Monthly' | 'Trip';
-  rate: number;
-  startDate: string;
-  endDate?: string;
-  status: 'Active' | 'Completed' | 'Cancelled';
-  remarks?: string;
-}
-
-export interface SupplierPayment {
-  _id: string;
-  paymentNumber: number;
-  supplierId: string;
-  supplier?: Supplier;
-  truckRentalId?: string;
-  truckRental?: TruckRental;
-  date: string;
-  amount: number;
-  mode: PaymentMode;
-  referenceNo?: string;
-  remarks?: string;
-}
-
-export enum RentalType {
-  DAILY = 'Daily',
-  MONTHLY = 'Monthly',
-  TRIP = 'Trip',
-}

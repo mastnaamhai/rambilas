@@ -3,12 +3,13 @@ import React from 'react';
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  helperText?: string;
   wrapperClassName?: string;
   // Fix: Specify that the icon prop is a ReactElement that accepts a className, which resolves the cloneElement type error.
   icon?: React.ReactElement<{ className?: string }>;
 }
 
-export const Input: React.FC<InputProps> = ({ label, id, type = 'text', error, wrapperClassName, icon, className, ...props }) => {
+export const Input = ({ label, id, type = 'text', error, helperText, wrapperClassName, icon, className, ...props }: InputProps) => {
   const inputId = id || `input-${(label || '').replace(/\s+/g, '-')}`;
   
   const errorClasses = error 
@@ -41,6 +42,7 @@ export const Input: React.FC<InputProps> = ({ label, id, type = 'text', error, w
         </label>
       )}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {helperText && !error && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
     </div>
   );
 };

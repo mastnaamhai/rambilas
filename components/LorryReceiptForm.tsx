@@ -1,17 +1,23 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GstPayableBy, RiskBearer } from '../types';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
-import { getCurrentDate } from '../services/utils';
 import { Card } from './ui/Card';
 import { Select } from './ui/Select';
 import { Textarea } from './ui/Textarea';
+import { ValidatedInput } from './ui/ValidatedInput';
+import { ValidatedAutocompleteSelect } from './ui/ValidatedAutocompleteSelect';
+import { ValidatedCitySelect } from './ui/ValidatedCitySelect';
+import { ValidatedTextarea } from './ui/ValidatedTextarea';
 import { AutocompleteInput } from './ui/AutocompleteInput';
-import { commonCities, commonPackingMethods } from '../constants/formData';
+import { EditableSectionBox } from './ui/EditableSectionBox';
+import { commonPackingMethods } from '../constants/formData';
 import { indianStates } from '../constants';
-import { fetchGstDetails } from '../services/utils';
-import { numberingService } from '../services/numberingService';
+import { fetchGstDetails } from '../services/simpleGstService';
+import { simpleNumberingService } from '../services/simpleNumberingService';
 import { useLorryReceiptFormState } from '../hooks/useLorryReceiptFormState';
+import { useFormValidation } from '../hooks/useFormValidation';
+import { fieldRules } from '../services/formValidation';
 
 import type { LorryReceipt, Customer, TruckHiringNote } from '../types';
 
@@ -22,12 +28,9 @@ interface LorryReceiptFormProps {
   truckHiringNotes: TruckHiringNote[];
   existingLr?: LorryReceipt;
   onSaveCustomer: (customer: Omit<Customer, 'id' | '_id'> & { _id?: string }) => Promise<Customer>;
-  lorryReceipts: LorryReceipt[];
+  onRefreshCustomers?: () => Promise<Customer[]>;
 }
 
-type LorryReceiptFormData = Omit<LorryReceipt, '_id' | 'id' | 'status' | 'consignor' | 'consignee' | 'vehicleId' | 'vehicle'> & {
-    remarks?: string;
-};
 
 export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({ 
     onSave, 
@@ -35,8 +38,8 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
     customers, 
     truckHiringNotes, 
     existingLr, 
-    onSaveCustomer, 
-    lorryReceipts
+    onSaveCustomer,
+    onRefreshCustomers
 }) => {
     // Use the custom hook for state management
     const {
@@ -83,40 +86,76 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         getInitialState
     } = useLorryReceiptFormState(existingLr);
 
+    // State for auto-generated LR number display
+    const [lrNumber, setLrNumber] = useState('');
+    const [isLoadingLrNumber, setIsLoadingLrNumber] = useState(false);
+
+    // Validation rules for LR form
+    const validationRules = {
+        // Use anyDate when manual LR is enabled to allow past dates for custom entries
+        date: allowManualLr ? fieldRules.anyDate : fieldRules.date,
+        consignorId: { required: true, message: 'Please select a consignor' },
+        consigneeId: { required: true, message: 'Please select a consignee' },
+        vehicleNumber: fieldRules.vehicleNumber,
+        from: { required: true, minLength: 2, message: 'From location is required' },
+        to: { required: true, minLength: 2, message: 'To location is required' },
+        'packages.0.description': fieldRules.packageDescription,
+        'packages.0.actualWeight': fieldRules.actualWeight,
+        'packages.0.chargedWeight': fieldRules.chargedWeight,
+        'packages.0.count': { required: true, min: 1, message: 'Package count must be at least 1' },
+        'packages.0.packingMethod': { required: true, message: 'Packing method is required' },
+        'charges.freight': fieldRules.freightRate,
+        'charges.aoc': { min: 0, message: 'AOC cannot be negative' },
+        'charges.hamali': { min: 0, message: 'Hamali cannot be negative' },
+        'charges.bCh': { min: 0, message: 'B.Ch cannot be negative' },
+        'charges.trCh': { min: 0, message: 'Tr.Ch cannot be negative' },
+        'charges.detentionCh': { min: 0, message: 'Detention charges cannot be negative' },
+        gstPayableBy: { required: true, message: 'GST Payable By is required' },
+        riskBearer: { required: true, message: 'Risk Bearer is required' },
+        lrNumber: {
+            custom: (value: number) => {
+                if (allowManualLr && value) {
+                    if (value <= 0) return 'LR number must be greater than 0';
+                }
+                return null;
+            }
+        },
+        loadingAddress: { maxLength: 500, message: 'Loading address cannot exceed 500 characters' },
+        deliveryAddress: { maxLength: 500, message: 'Delivery address cannot exceed 500 characters' },
+        eWayBillNo: { maxLength: 50, message: 'E-Way Bill number cannot exceed 50 characters' },
+        valueGoods: { min: 0, message: 'Value of goods cannot be negative' },
+        invoiceNo: { maxLength: 50, message: 'Invoice number cannot exceed 50 characters' },
+        sealNo: { maxLength: 50, message: 'Seal number cannot exceed 50 characters' },
+        // Use anyDate when manual LR is enabled to allow past dates for custom entries
+        reportingDate: allowManualLr ? fieldRules.anyDate : fieldRules.date,
+        // Use anyDate when manual LR is enabled to allow past dates for custom entries
+        deliveryDate: allowManualLr ? fieldRules.anyDate : fieldRules.futureDate,
+        remarks: fieldRules.remarks
+    };
+
+    // Form validation hook
+    const {
+        validateForm: validateEntireForm,
+        clearFieldError,
+        setErrors: setValidationErrors
+    } = useFormValidation({
+        validationRules,
+        validateOnChange: true,
+        validateOnBlur: true,
+        validateOnSubmit: true
+    });
+
     // Get unique vehicle numbers from THN for autocomplete
     const getVehicleSuggestions = useCallback(() => {
         const vehicleNumbers = truckHiringNotes
-            .map(thn => thn.truckNumber)
-            .filter((number, index, self) => number && self.indexOf(number) === index)
+            .map((thn: TruckHiringNote) => thn.truckNumber)
+            .filter((number: string, index: number, self: string[]) => number && self.indexOf(number) === index)
             .sort();
         return vehicleNumbers;
     }, [truckHiringNotes]);
 
-    // Format LR number according to numbering configuration
-    const formatLrNumber = useCallback((number: number) => {
-        const lrConfig = numberingService.getConfig('lr');
-        if (!lrConfig) return `LR${String(number).padStart(6, '0')}`;
-        
-        const { prefix = 'LR' } = lrConfig;
-        // Calculate padding based on endNumber to determine required digits
-        const padding = Math.max(6, String(lrConfig.endNumber || 999999).length);
-        const formattedNumber = String(number).padStart(padding, '0');
-        
-        return `${prefix}${formattedNumber}`;
-    }, []);
 
-    // Get unique locations from existing LRs
-    const uniqueLocations = useMemo(() => {
-        const locations = new Set<string>();
-        lorryReceipts.forEach(lr => {
-            if (lr.from) locations.add(lr.from.trim());
-            if (lr.to) locations.add(lr.to.trim());
-        });
-        return Array.from(locations).sort();
-    }, [lorryReceipts]);
-
-    // Memoize city suggestions to prevent re-renders
-    const citySuggestions = useMemo(() => [...commonCities, ...uniqueLocations], [uniqueLocations]);
+    // Note: citySuggestions removed - now using ValidatedCitySelect with comprehensive city data
 
     // Calculate total amount
     const calculateTotal = useCallback(() => {
@@ -131,30 +170,17 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         setLr(prev => ({ ...prev, totalAmount: total }));
     }, [calculateTotal]);
 
-    // Load numbering configuration and get next LR number
+    // Load numbering configuration for display purposes only
     useEffect(() => {
         const loadNumberingConfig = async () => {
             try {
-                await numberingService.loadConfigs();
-                const lrConfig = numberingService.getConfig('lr');
-                if (lrConfig) {
-                    setAllowManualLr(lrConfig.allowManualEntry);
-                    // Get the next LR number if not editing existing LR
-                    if (!existingLr) {
-                        const nextNumber = await numberingService.getNextNumber('lr');
-                        setLr(prev => ({ ...prev, lrNumber: nextNumber }));
-                    }
-                }
-                // Set current date if not already set
-                if (!lr.date) {
-                    setLr(prev => ({ ...prev, date: getCurrentDate() }));
-                }
+                await simpleNumberingService.initialize();
             } catch (error) {
                 console.error('Failed to load numbering configuration:', error);
             }
         };
         loadNumberingConfig();
-    }, [existingLr, lr.date, setLr, setAllowManualLr]);
+    }, []);
 
     // Initialize checkbox states when editing existing LR
     useEffect(() => {
@@ -164,7 +190,33 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         }
     }, [existingLr]);
 
-    // GSTIN verification functions
+    // Load LR numbering configuration for display purposes
+    useEffect(() => {
+        const loadLrNumber = async () => {
+            if (!existingLr && !allowManualLr) {
+                try {
+                    setIsLoadingLrNumber(true);
+                    await simpleNumberingService.initialize();
+                    // Get the next number without actually consuming it
+                    const config = simpleNumberingService.getConfig('consignment');
+                    if (config) {
+                        const formattedNumber = simpleNumberingService.formatNumber('consignment', config.currentNumber);
+                        setLrNumber(formattedNumber);
+                    } else {
+                        setLrNumber('LR-5001'); // Default fallback
+                    }
+                } catch (error) {
+                    console.error('Failed to load LR numbering:', error);
+                    setLrNumber('LR-5001'); // Better fallback
+                } finally {
+                    setIsLoadingLrNumber(false);
+                }
+            }
+        };
+        loadLrNumber();
+    }, [existingLr, allowManualLr]);
+
+    // GSTIN verification functions - Database-first approach
     const handleVerifyGstinConsignor = async () => {
         if (!gstinConsignor || gstinConsignor.length !== 15) {
             setVerifyStatus({ message: 'Please enter a valid 15-digit GSTIN.', type: 'error' });
@@ -172,13 +224,64 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         }
         setIsVerifyingConsignor(true);
         setVerifyStatus(null);
+        
         try {
-            const details = await fetchGstDetails(gstinConsignor);
-            const newCustomer = await onSaveCustomer(details);
-            setLr(prev => ({ ...prev, consignorId: newCustomer._id }));
-            setVerifyStatus({ message: 'Consignor details fetched and added successfully.', type: 'success' });
+            // STEP 1: Check database first (FREE)
+            const normalizedGstin = gstinConsignor.toUpperCase();
+            const existingCustomer = customers.find((c: Customer) => 
+                c.gstin && c.gstin.toUpperCase() === normalizedGstin
+            );
+            
+            if (existingCustomer) {
+                // Customer exists in database - use it immediately (NO API CALL)
+                setLr(prev => ({ ...prev, consignorId: existingCustomer._id }));
+                setVerifyStatus({ 
+                    message: `Consignor found in database: ${existingCustomer.name} (${existingCustomer.gstin})`, 
+                    type: 'success' 
+                });
+                return;
+            }
+
+            // STEP 2: Customer not in database - fetch from API (COST MONEY)
+            console.log('Customer not found in database, fetching from GST API...');
+            const result = await fetchGstDetails(gstinConsignor);
+            
+            if (!result.success) {
+                setVerifyStatus({ 
+                    message: result.error || 'Failed to verify GSTIN. Please try again.', 
+                    type: 'error' 
+                });
+                
+                // If credits are exhausted, automatically show manual entry option
+                if (result.error && result.error.includes('credits exhausted')) {
+                    setShowConsignorManual(true);
+                }
+                return;
+            }
+
+            // STEP 3: Create new customer from GST data
+            try {
+                const newCustomer = await onSaveCustomer(result.data!);
+                setLr(prev => ({ ...prev, consignorId: newCustomer._id }));
+                setVerifyStatus({ 
+                    message: `Consignor created from GST API: ${newCustomer.name} (${newCustomer.gstin})`, 
+                    type: 'success' 
+                });
+            } catch (createError: any) {
+                console.error('Failed to create customer:', createError);
+                setVerifyStatus({ 
+                    message: `GSTIN verified but failed to create customer. Please try again.`, 
+                    type: 'error' 
+                });
+            }
         } catch (error: any) {
-            setVerifyStatus({ message: error.message || 'Verification failed.', type: 'error' });
+            const errorMessage = error.message || 'Verification failed.';
+            setVerifyStatus({ message: errorMessage, type: 'error' });
+            
+            // If API failed due to credits or other issues, suggest manual entry
+            if (errorMessage.includes('credits exhausted') || errorMessage.includes('API') || errorMessage.includes('unavailable')) {
+                setShowConsignorManual(true);
+            }
         } finally {
             setIsVerifyingConsignor(false);
         }
@@ -191,13 +294,64 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         }
         setIsVerifyingConsignee(true);
         setVerifyStatus(null);
+        
         try {
-            const details = await fetchGstDetails(gstinConsignee);
-            const newCustomer = await onSaveCustomer(details);
-            setLr(prev => ({ ...prev, consigneeId: newCustomer._id }));
-            setVerifyStatus({ message: 'Consignee details fetched and added successfully.', type: 'success' });
+            // STEP 1: Check database first (FREE)
+            const normalizedGstin = gstinConsignee.toUpperCase();
+            const existingCustomer = customers.find((c: Customer) => 
+                c.gstin && c.gstin.toUpperCase() === normalizedGstin
+            );
+            
+            if (existingCustomer) {
+                // Customer exists in database - use it immediately (NO API CALL)
+                setLr(prev => ({ ...prev, consigneeId: existingCustomer._id }));
+                setVerifyStatus({ 
+                    message: `Consignee found in database: ${existingCustomer.name} (${existingCustomer.gstin})`, 
+                    type: 'success' 
+                });
+                return;
+            }
+
+            // STEP 2: Customer not in database - fetch from API (COST MONEY)
+            console.log('Customer not found in database, fetching from GST API...');
+            const result = await fetchGstDetails(gstinConsignee);
+            
+            if (!result.success) {
+                setVerifyStatus({ 
+                    message: result.error || 'Failed to verify GSTIN. Please try again.', 
+                    type: 'error' 
+                });
+                
+                // If credits are exhausted, automatically show manual entry option
+                if (result.error && result.error.includes('credits exhausted')) {
+                    setShowConsigneeManual(true);
+                }
+                return;
+            }
+
+            // STEP 3: Create new customer from GST data
+            try {
+                const newCustomer = await onSaveCustomer(result.data!);
+                setLr(prev => ({ ...prev, consigneeId: newCustomer._id }));
+                setVerifyStatus({ 
+                    message: `Consignee created from GST API: ${newCustomer.name} (${newCustomer.gstin})`, 
+                    type: 'success' 
+                });
+            } catch (createError: any) {
+                console.error('Failed to create customer:', createError);
+                setVerifyStatus({ 
+                    message: `GSTIN verified but failed to create customer. Please try again.`, 
+                    type: 'error' 
+                });
+            }
         } catch (error: any) {
-            setVerifyStatus({ message: error.message || 'Verification failed.', type: 'error' });
+            const errorMessage = error.message || 'Verification failed.';
+            setVerifyStatus({ message: errorMessage, type: 'error' });
+            
+            // If API failed due to credits or other issues, suggest manual entry
+            if (errorMessage.includes('credits exhausted') || errorMessage.includes('API') || errorMessage.includes('unavailable')) {
+                setShowConsigneeManual(true);
+            }
         } finally {
             setIsVerifyingConsignee(false);
         }
@@ -226,7 +380,21 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         }
         try {
             if (manualConsignor.name && manualConsignor.address && manualConsignor.state) {
-                const newCustomer = await onSaveCustomer(manualConsignor as Omit<Customer, 'id'>);
+                // Filter out empty strings for optional fields to prevent MongoDB duplicate key errors
+                const processedConsignorData = {
+                    ...manualConsignor,
+                    gstin: manualConsignor.gstin && manualConsignor.gstin.trim() !== '' ? manualConsignor.gstin : undefined,
+                    contactPerson: manualConsignor.contactPerson && manualConsignor.contactPerson.trim() !== '' ? manualConsignor.contactPerson : undefined,
+                    contactPhone: manualConsignor.contactPhone && manualConsignor.contactPhone.trim() !== '' ? manualConsignor.contactPhone : undefined,
+                    contactEmail: manualConsignor.contactEmail && manualConsignor.contactEmail.trim() !== '' ? manualConsignor.contactEmail : undefined,
+                    city: manualConsignor.city && manualConsignor.city.trim() !== '' ? manualConsignor.city : undefined,
+                    pin: manualConsignor.pin && manualConsignor.pin.trim() !== '' ? manualConsignor.pin : undefined,
+                    phone: manualConsignor.phone && manualConsignor.phone.trim() !== '' ? manualConsignor.phone : undefined,
+                    email: manualConsignor.email && manualConsignor.email.trim() !== '' ? manualConsignor.email : undefined,
+                    tradeName: manualConsignor.tradeName && manualConsignor.tradeName.trim() !== '' ? manualConsignor.tradeName : undefined,
+                };
+                
+                const newCustomer = await onSaveCustomer(processedConsignorData as Omit<Customer, 'id'>);
                 setLr(prev => ({ ...prev, consignorId: newCustomer._id }));
                 setShowConsignorManual(false);
                 setManualConsignor(getInitialState().consignorId as any); // Reset manual form
@@ -248,7 +416,21 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         }
         try {
             if (manualConsignee.name && manualConsignee.address && manualConsignee.state) {
-                const newCustomer = await onSaveCustomer(manualConsignee as Omit<Customer, 'id'>);
+                // Filter out empty strings for optional fields to prevent MongoDB duplicate key errors
+                const processedConsigneeData = {
+                    ...manualConsignee,
+                    gstin: manualConsignee.gstin && manualConsignee.gstin.trim() !== '' ? manualConsignee.gstin : undefined,
+                    contactPerson: manualConsignee.contactPerson && manualConsignee.contactPerson.trim() !== '' ? manualConsignee.contactPerson : undefined,
+                    contactPhone: manualConsignee.contactPhone && manualConsignee.contactPhone.trim() !== '' ? manualConsignee.contactPhone : undefined,
+                    contactEmail: manualConsignee.contactEmail && manualConsignee.contactEmail.trim() !== '' ? manualConsignee.contactEmail : undefined,
+                    city: manualConsignee.city && manualConsignee.city.trim() !== '' ? manualConsignee.city : undefined,
+                    pin: manualConsignee.pin && manualConsignee.pin.trim() !== '' ? manualConsignee.pin : undefined,
+                    phone: manualConsignee.phone && manualConsignee.phone.trim() !== '' ? manualConsignee.phone : undefined,
+                    email: manualConsignee.email && manualConsignee.email.trim() !== '' ? manualConsignee.email : undefined,
+                    tradeName: manualConsignee.tradeName && manualConsignee.tradeName.trim() !== '' ? manualConsignee.tradeName : undefined,
+                };
+                
+                const newCustomer = await onSaveCustomer(processedConsigneeData as Omit<Customer, 'id'>);
                 setLr(prev => ({ ...prev, consigneeId: newCustomer._id }));
                 setShowConsigneeManual(false);
                 setManualConsignee(getInitialState().consigneeId as any); // Reset manual form
@@ -264,49 +446,69 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         updateFormData(name, value, type);
     };
 
+    const handleValueChange = (fieldName: string, value: any) => {
+        clearFieldError(fieldName);
+        updateFormData(fieldName, value, typeof value === 'number' ? 'number' : 'text');
+    };
+
     const handleCheckboxChangeEvent = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, checked } = e.target;
         handleCheckboxChange(name, checked);
     };
 
-    const validateFormData = (): boolean => {
-        const newErrors: { [key: string]: string } = {};
+    const validateFormData = async (): Promise<{ isValid: boolean; errors: { [key: string]: string } }> => {
+        // Use the centralized validation
+        const formErrors = validateEntireForm(lr);
         
-        if (!lr.date) newErrors.date = 'Date is required';
-        if (!lr.consignorId) newErrors.consignorId = 'Consignor is required';
-        if (!lr.consigneeId) newErrors.consigneeId = 'Consignee is required';
-        if (!lr.vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required';
-        if (!lr.from) newErrors.from = 'From location is required';
-        if (!lr.to) newErrors.to = 'To location is required';
-        if (!lr.packages?.[0]?.description) newErrors['packages.0.description'] = 'Package description is required';
-        if (!lr.packages?.[0]?.actualWeight || lr.packages[0].actualWeight <= 0) newErrors['packages.0.actualWeight'] = 'Actual weight is required';
-        if (lr.charges?.freight === undefined || lr.charges.freight < 0) newErrors.freight = 'Freight amount is required';
+        // Additional custom validations
+        const customErrors: { [key: string]: string } = {};
         
         // Validate custom LR number format if manual entry is enabled
         if (allowManualLr && lr.lrNumber) {
-            const lrConfig = numberingService.getConfig('lr');
-            if (lrConfig) {
-                const { prefix = 'LR' } = lrConfig;
-                const padding = Math.max(6, String(lrConfig.endNumber || 999999).length);
-                const expectedFormat = new RegExp(`^${prefix}\\d{${padding}}$`);
-                if (!expectedFormat.test(String(lr.lrNumber))) {
-                    newErrors.lrNumber = `LR number must follow format: ${prefix}${'0'.repeat(padding)}`;
+            try {
+                // Extract number from formatted string (remove prefix)
+                const config = simpleNumberingService.getConfig('consignment');
+                const numberPart = String(lr.lrNumber).replace(config?.prefix || 'LR', '');
+                const number = parseInt(numberPart, 10);
+                
+                if (isNaN(number)) {
+                    customErrors.lrNumber = 'Please enter a valid number';
+                } else {
+                    const validation = await simpleNumberingService.validateManualNumber('consignment', number);
+                    if (!validation.valid) {
+                        customErrors.lrNumber = validation.message || 'Invalid LR number format';
+                    }
                 }
+            } catch (error) {
+                customErrors.lrNumber = 'Failed to validate LR number';
             }
         }
-        if (!lr.gstPayableBy) newErrors.gstPayableBy = 'GST Payable By is required';
-        if (!lr.riskBearer) newErrors.riskBearer = 'Risk Bearer is required';
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        // Merge all errors
+        const allErrors = { ...formErrors, ...customErrors };
+        setErrors(allErrors);
+        setValidationErrors(allErrors);
+        
+        // Log validation errors for debugging
+        if (Object.keys(allErrors).length > 0) {
+            console.log('Validation errors:', allErrors);
+        }
+        
+        return { isValid: Object.keys(allErrors).length === 0, errors: allErrors };
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('=== LR FORM SUBMIT START ===');
+        console.log('Form data:', lr);
         
-        if (!validateFormData()) {
+        const validation = await validateFormData();
+        console.log('Validation result:', validation);
+        
+        if (!validation.isValid) {
+            console.log('Validation failed, errors:', validation.errors);
             // Focus on first error field
-            const firstErrorField = Object.keys(errors)[0];
+            const firstErrorField = Object.keys(validation.errors)[0];
             if (firstErrorField) {
             const element = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement;
             element?.focus();
@@ -314,6 +516,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
             return;
         }
 
+        console.log('Validation passed, proceeding with save...');
         setIsSaving(true);
         try {
             // Prepare LR data for submission
@@ -326,14 +529,13 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                     delete lrData.lrNumber; // Let backend generate it
                 }
             } else {
-                // Auto-generated - ensure we have a valid LR number
-                if (!lrData.lrNumber) {
-                    const nextNumber = await numberingService.getNextNumber('lr');
-                    lrData.lrNumber = nextNumber; // getNextNumber now returns a number
-                }
+                // Auto-generated - let backend handle numbering completely
+                delete lrData.lrNumber; // Always let backend generate for auto mode
             }
             
+            console.log('Sending LR data to onSave:', lrData);
             await onSave(lrData);
+            console.log('LR saved successfully');
             resetForm(); // Reset form state on successful save
             onCancel(); // Close form on successful save
         } catch (error) {
@@ -389,13 +591,13 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto" data-form-modal="true">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form onSubmit={handleSubmit}>
                     <Card>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-800">
-                                {existingLr ? `Edit Lorry Receipt #${existingLr.lrNumber}` : 'Create New Lorry Receipt'}
+                                {existingLr ? `Edit Consignment Note #${existingLr.lrNumber}` : 'Create New Consignment Note'}
                             </h2>
                             <div className="text-xl font-bold text-green-600">
                                 Total: ₹{lr.totalAmount?.toFixed(2) || '0.00'}
@@ -413,11 +615,18 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <label className="block text-sm font-medium text-gray-700">
-                                            LR Number
+                                            Consignment Note Number
                                         </label>
                                         {!allowManualLr ? (
                                             <div className="w-full px-3 py-3 border border-green-200 rounded-md bg-green-50 text-green-800 text-base h-12 flex items-center">
-                                                Auto-generated: {formatLrNumber(lr.lrNumber || 0)}
+                                                {isLoadingLrNumber ? (
+                                                    <span className="flex items-center">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600 mr-2"></div>
+                                                        Loading LR number...
+                                                    </span>
+                                                ) : (
+                                                    <span className="font-semibold">LR Number: {lrNumber}</span>
+                                                )}
                                             </div>
                                         ) : (
                                             <input
@@ -425,7 +634,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                 type="text"
                                                 value={lr.lrNumber || ''}
                                                 onChange={handleChange}
-                                                placeholder="Enter LR number or leave empty for auto-generation"
+                                                placeholder="Enter consignment number or leave empty for auto-generation"
                                                 className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400 h-12"
                                             />
                                         )}
@@ -433,16 +642,13 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     </div>
                                     
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Date <span className="text-red-500">*</span>
-                                        </label>
-                                    <Input 
-                                        name="date" 
-                                        type="date" 
-                                        value={lr.date || ''} 
-                                        onChange={handleChange} 
-                                        required 
-                                        error={errors.date}
+                                        <ValidatedInput
+                                            fieldName="date"
+                                            validationRules={validationRules}
+                                            value={lr.date || ''}
+                                            onValueChange={(value) => handleValueChange('date', value)}
+                                            type="date"
+                                            required
                                             className="h-12"
                                         />
                                         <p className="text-xs text-gray-500">Format: DD/MM/YYYY</p>
@@ -473,43 +679,33 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                     />
                                     <label htmlFor="customLrCheckbox" className="text-sm text-gray-700">
-                                        Enter custom LR number
+                                        Enter custom consignment number
                                     </label>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-gray-700">
-                                                From
-                                            </label>
-                                    <AutocompleteInput
-                                        name="from"
-                                        value={lr.from || ''}
-                                        onChange={handleChange}
-                                        suggestions={citySuggestions}
-                                        placeholder="From"
-                                        required
-                                        error={errors.from}
-                                        helpText="Start typing to see city suggestions"
-                                        className="h-12"
-                                    />
+                                            <ValidatedCitySelect
+                                                fieldName="from"
+                                                validationRules={validationRules}
+                                                value={lr.from || ''}
+                                                onValueChange={(value) => handleValueChange('from', value)}
+                                                label="From"
+                                                placeholder="Type to search cities..."
+                                                required
+                                            />
                                 </div>
                                         <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-gray-700">
-                                                To
-                                            </label>
-                                    <AutocompleteInput
-                                        name="to"
-                                        value={lr.to || ''}
-                                        onChange={handleChange}
-                                        suggestions={citySuggestions}
-                                        placeholder="To"
-                                        required
-                                        error={errors.to}
-                                        helpText="Start typing to see city suggestions"
-                                        className="h-12"
-                                    />
+                                            <ValidatedCitySelect
+                                                fieldName="to"
+                                                validationRules={validationRules}
+                                                value={lr.to || ''}
+                                                onValueChange={(value) => handleValueChange('to', value)}
+                                                label="To"
+                                                placeholder="Type to search cities..."
+                                                required
+                                            />
                                 </div>
                             </div>
 
@@ -582,24 +778,21 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Consignor Details</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Select Consignor <span className="text-red-500">*</span>
-                                    </label>
-                                        <Select 
-                                            name="consignorId" 
-                                            value={lr.consignorId || ''} 
-                                            onChange={handleChange} 
-                                            required 
-                                            error={errors.consignorId}
-                                        >
-                                            <option value="">Select Consignor</option>
-                                            {customers.map(customer => (
-                                                <option key={customer._id} value={customer._id}>
-                                                {customer.name} {customer.gstin ? `(${customer.gstin})` : ''}
-                                                </option>
-                                            ))}
-                                        </Select>
-                                    </div>
+                                    <ValidatedAutocompleteSelect
+                                        fieldName="consignorId"
+                                        validationRules={validationRules}
+                                        value={lr.consignorId || ''}
+                                        onValueChange={(value) => handleValueChange('consignorId', value)}
+                                        customers={customers}
+                                        label="Consignor"
+                                        placeholder="Type to search consignor..."
+                                        required
+                                        onSaveCustomer={onSaveCustomer}
+                                        onSelect={(customer) => {
+                                            console.log('Consignor selected:', customer);
+                                        }}
+                                    />
+                                </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
                                         Consignor GSTIN
@@ -646,9 +839,19 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     <Button type="button" onClick={handleAddManualConsignor} className="w-full">Add Consignor</Button>
                                 </div>
                             )}
-                            {verifyStatus && verifyStatus.type === 'error' && (isVerifyingConsignor || isVerifyingConsignee) && (
-                                <div className={`mt-2 p-2 rounded text-sm bg-red-100 text-red-800 border border-red-200`}>
-                                    {verifyStatus.message}
+                            {verifyStatus && verifyStatus.type === 'error' && (
+                                <div className={`mt-2 p-3 rounded text-sm bg-red-100 text-red-800 border border-red-200`}>
+                                    <div className="font-medium">{verifyStatus.message}</div>
+                                    {verifyStatus.message.includes('credits exhausted') && (
+                                        <div className="mt-2 text-xs text-red-600">
+                                            💡 You can enter customer details manually using the "Add Manually" option below.
+                                        </div>
+                                    )}
+                                    {!verifyStatus.message.includes('credits exhausted') && (
+                                        <div className="mt-2 text-xs text-red-600">
+                                            💡 You can also enter customer details manually using the "Add Manually" option below.
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -658,24 +861,21 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                             <h3 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Consignee Details</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Select Consignee <span className="text-red-500">*</span>
-                                    </label>
-                                        <Select 
-                                            name="consigneeId" 
-                                            value={lr.consigneeId || ''} 
-                                            onChange={handleChange} 
-                                            required 
-                                            error={errors.consigneeId}
-                                        >
-                                            <option value="">Select Consignee</option>
-                                            {customers.map(customer => (
-                                                <option key={customer._id} value={customer._id}>
-                                                {customer.name} {customer.gstin ? `(${customer.gstin})` : ''}
-                                                </option>
-                                            ))}
-                                        </Select>
-                                    </div>
+                                    <ValidatedAutocompleteSelect
+                                        fieldName="consigneeId"
+                                        validationRules={validationRules}
+                                        value={lr.consigneeId || ''}
+                                        onValueChange={(value) => handleValueChange('consigneeId', value)}
+                                        customers={customers}
+                                        label="Consignee"
+                                        placeholder="Type to search consignee..."
+                                        required
+                                        onSaveCustomer={onSaveCustomer}
+                                        onSelect={(customer) => {
+                                            console.log('Consignee selected:', customer);
+                                        }}
+                                    />
+                                </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
                                         Consignee GSTIN
@@ -722,9 +922,19 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     <Button type="button" onClick={handleAddManualConsignee} className="w-full">Add Consignee</Button>
                                 </div>
                             )}
-                            {verifyStatus && verifyStatus.type === 'error' && (isVerifyingConsignor || isVerifyingConsignee) && (
-                                <div className={`mt-2 p-2 rounded text-sm bg-red-100 text-red-800 border border-red-200`}>
-                                    {verifyStatus.message}
+                            {verifyStatus && verifyStatus.type === 'error' && (
+                                <div className={`mt-2 p-3 rounded text-sm bg-red-100 text-red-800 border border-red-200`}>
+                                    <div className="font-medium">{verifyStatus.message}</div>
+                                    {verifyStatus.message.includes('credits exhausted') && (
+                                        <div className="mt-2 text-xs text-red-600">
+                                            💡 You can enter customer details manually using the "Add Manually" option below.
+                                        </div>
+                                    )}
+                                    {!verifyStatus.message.includes('credits exhausted') && (
+                                        <div className="mt-2 text-xs text-red-600">
+                                            💡 You can also enter customer details manually using the "Add Manually" option below.
+                                        </div>
+                                    )}
                                 </div>
                             )}
                                 </div>
@@ -831,19 +1041,17 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Freight Charges (₹) <span className="text-red-500">*</span>
-                                    </label>
-                                        <Input 
-                                            name="charges.freight" 
-                                            type="number" 
-                                            value={lr.charges?.freight || 0} 
-                                            onChange={handleChange} 
-                                            required 
-                                            min="0"
-                                            step="0.01"
-                                            error={errors.freight}
-                                        />
+                                    <ValidatedInput
+                                        fieldName="charges.freight"
+                                        validationRules={validationRules}
+                                        value={lr.charges?.freight || 0}
+                                        onValueChange={(value) => handleValueChange('charges.freight', value)}
+                                        type="number"
+                                        required
+                                        min="0"
+                                        step="0.01"
+                                        label="Freight Charges (₹)"
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
@@ -950,15 +1158,15 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             name="riskBearer"
                                             value={bearer}
                                             checked={lr.riskBearer === bearer}
-                                        onChange={handleChange} 
+                                            onChange={handleChange} 
                                             className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300"
                                         />
                                         <span className="text-sm font-medium text-gray-700">{bearer}</span>
                                     </label>
                                 ))}
-                                </div>
+                            </div>
                             {errors.riskBearer && <p className="text-red-500 text-xs mt-1">{errors.riskBearer}</p>}
-                                </div>
+                        </div>
 
                         {/* Insurance Details Section (Blue) */}
                         <div className="space-y-4 mb-6 p-4 border border-blue-200 rounded-lg bg-blue-50">
@@ -999,20 +1207,14 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                     value={lr.insurance?.date || ''} 
                                             onChange={handleChange} 
                                                 />
-                                                <Input 
-                                            label="Amount (₹)" 
-                                                    name="insurance.amount" 
-                                                    type="number" 
-                                                    value={lr.insurance?.amount || 0} 
-                                            onChange={handleChange} 
-                                                    min="0"
-                                                    step="0.01"
-                                                />
                                         <Input 
-                                            label="Risk" 
-                                            name="insurance.risk" 
-                                            value={lr.insurance?.risk || ''} 
+                                            label="Amount (₹)" 
+                                            name="insurance.amount" 
+                                            type="number" 
+                                            value={lr.insurance?.amount || 0} 
                                             onChange={handleChange} 
+                                            min="0"
+                                            step="0.01"
                                         />
                                             </div>
                             </div>
@@ -1095,15 +1297,59 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Remarks
-                                </label>
-                                <Textarea 
-                                    name="remarks" 
-                                    value={(lr as any).remarks || ''} 
-                                    onChange={handleChange} 
+                                <ValidatedTextarea
+                                    fieldName="remarks"
+                                    validationRules={validationRules}
+                                    value={(lr as any).remarks || ''}
+                                    onValueChange={(value) => handleValueChange('remarks', value)}
                                     rows={3}
                                     placeholder="Additional notes or remarks for this lorry receipt"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Fixed Layout Sections */}
+                        <div className="space-y-6 mb-6 p-4 border border-gray-200 rounded-lg">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-4">Additional Information</h3>
+                                <div className="border-t border-gray-300"></div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Schedule of Demurrage Charges */}
+                                <EditableSectionBox
+                                    title="SCHEDULE OF DEMURRAGE CHARGES"
+                                    content={lr.demurrageCharges || '• Free time: 24 hours from arrival\n• Demurrage charges: ₹500 per day after free time\n• Storage charges: ₹200 per day\n• Loading/unloading time: 2 hours each\n• Weekend and holidays included in calculation\n• Charges payable in advance for extended detention'}
+                                    onContentChange={(value) => handleValueChange('demurrageCharges', value)}
+                                    placeholder="Enter demurrage charges, rates, and conditions..."
+                                    rows={6}
+                                />
+
+                                {/* Notice */}
+                                <EditableSectionBox
+                                    title="NOTICE"
+                                    content={lr.notice || 'The consignments covered by this Lorry Receipt shall be stored at the destination under the control of the Transport Operator and shall be delivered to or to the order of the Consignee Bank whose name is mentioned in the Lorry Receipt. It will under no circumstances be delivered to anyone without the written authority from the Consignee Bank or its order, endorsed on the Consignee copy or on a separate letter of Authority.'}
+                                    onContentChange={(value) => handleValueChange('notice', value)}
+                                    placeholder="Enter important legal or shipping-related notices..."
+                                    rows={6}
+                                />
+
+                                {/* Risk Declaration */}
+                                <EditableSectionBox
+                                    title="RISK DECLARATION"
+                                    content={lr.riskDeclaration || 'Goods are accepted for carriage at owner\'s risk. The carrier shall not be responsible for any loss, damage, or delay due to:\n• Acts of God, natural disasters, or force majeure\n• War, riots, civil commotion, or government actions\n• Inherent vice or nature of goods\n• Improper packing or marking\n• Theft, pilferage, or mysterious disappearance\n\nPlease ensure proper insurance coverage for your consignment. The carrier\'s liability is limited to the freight charges paid.'}
+                                    onContentChange={(value) => handleValueChange('riskDeclaration', value)}
+                                    placeholder="Describe the risks involved with the consignment and insurance options..."
+                                    rows={6}
+                                />
+
+                                {/* Important Notice */}
+                                <EditableSectionBox
+                                    title="IMPORTANT NOTICE"
+                                    content={lr.importantNotice || 'This Consignment will not be detained, diverted, re-routed or re-booked without Consignee Bank\'s written permission. We will be delivered at the destination as per the terms and conditions mentioned in this Lorry Receipt. Any deviation from the agreed terms must be communicated in writing and acknowledged by all parties involved.'}
+                                    onContentChange={(value) => handleValueChange('importantNotice', value)}
+                                    placeholder="Enter any crucial updates or disclaimers about the consignment process..."
+                                    rows={6}
                                 />
                             </div>
                         </div>
@@ -1136,7 +1382,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     type="submit" 
                                     disabled={isSaving}
                                 >
-                                    {isSaving ? 'Saving...' : 'Save Lorry Receipt'}
+                                    {isSaving ? 'Saving...' : 'Save Consignment Note'}
                                 </Button>
                             </div>
                         </div>

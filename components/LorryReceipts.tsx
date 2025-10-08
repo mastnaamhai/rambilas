@@ -3,16 +3,13 @@ import type { LorryReceipt, Customer, CompanyInfo, Invoice } from '../types';
 import { LorryReceiptStatus } from '../types';
 import type { View } from '../App';
 import { formatDate } from '../services/utils';
-import { Input } from './ui/Input';
 import { Card } from './ui/Card';
-import { Select } from './ui/Select';
 import { Button } from './ui/Button';
-import { Textarea } from './ui/Textarea';
 import { LorryReceiptView } from './LorryReceiptPDF';
 import { API_BASE_URL } from '../constants';
-import { FilterSection } from './ui/FilterSection';
 import { Pagination } from './ui/Pagination';
 import { StatusBadge, getStatusVariant } from './ui/StatusBadge';
+import { UniversalSearchSort, SortOption } from './ui/UniversalSearchSort';
 
 
 interface LorryReceiptsProps {
@@ -29,10 +26,8 @@ interface LorryReceiptsProps {
 
 interface LorryReceiptsTableFilters {
     searchTerm: string;
-    startDate: string;
-    endDate: string;
-    selectedCustomerId: string;
-    selectedStatus: LorryReceiptStatus[];
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
     ids?: string[];
 }
 
@@ -77,6 +72,7 @@ const PreviewModal: React.FC<{
     <div
       className={`fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center p-4 transition-opacity duration-300 ease-in-out ${backdropAnimation}`}
       onClick={closeModal}
+      data-form-modal="true"
       aria-modal="true"
       role="dialog"
       data-pdf-viewer="true"
@@ -111,66 +107,101 @@ const PreviewModal: React.FC<{
 
 export const LorryReceipts: React.FC<LorryReceiptsProps> = ({ lorryReceipts, invoices, customers, companyInfo, onViewChange, onUpdateLrStatus, onDeleteLr, onBack, initialFilters }) => {
   const [searchTerm, setSearchTerm] = useState(initialFilters?.searchTerm || '');
-  const [startDate, setStartDate] = useState(initialFilters?.startDate || '');
-  const [endDate, setEndDate] = useState(initialFilters?.endDate || '');
-  const [selectedCustomerId, setSelectedCustomerId] = useState(initialFilters?.selectedCustomerId || '');
-  const [selectedStatus, setSelectedStatus] = useState<LorryReceiptStatus[]>(initialFilters?.selectedStatus || []);
+  const [sortBy, setSortBy] = useState(initialFilters?.sortBy || 'lrNumber');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>(initialFilters?.sortOrder || 'desc');
   const [previewItem, setPreviewItem] = useState<{type: 'LR', data: LorryReceipt} | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
+  // Sort options for LR
+  const sortOptions: SortOption[] = [
+    { value: 'lrNumber', label: 'Sort by LR Number' },
+    { value: 'date', label: 'Sort by Date' },
+    { value: 'consignor', label: 'Sort by Consignor' },
+    { value: 'consignee', label: 'Sort by Consignee' },
+    { value: 'from', label: 'Sort by From' },
+    { value: 'to', label: 'Sort by To' },
+    { value: 'totalAmount', label: 'Sort by Amount' },
+    { value: 'status', label: 'Sort by Status' }
+  ];
+
   const filteredLrs = useMemo(() => {
     // Create a set of LR IDs that are included in invoices (billed LRs)
     const invoicedLrIds = new Set(invoices.flatMap(inv => inv.lorryReceipts?.map(lr => lr._id) || []));
     
-    return lorryReceipts
-      .filter(lr => {
-        const consignorName = lr.consignor?.name || '';
-        const consigneeName = lr.consignee?.name || '';
+    let filtered = lorryReceipts.filter(lr => {
+      const consignorName = lr.consignor?.name || '';
+      const consigneeName = lr.consignee?.name || '';
 
-        const searchLower = searchTerm.toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
 
-        const matchesSearch = searchTerm === '' ||
-          lr.lrNumber.toString().includes(searchTerm) ||
-          lr.from.toLowerCase().includes(searchLower) ||
-          lr.to.toLowerCase().includes(searchLower) ||
-          consignorName.toLowerCase().includes(searchLower) ||
-          consigneeName.toLowerCase().includes(searchLower);
+      const matchesSearch = searchTerm === '' ||
+        lr.lrNumber.toString().includes(searchTerm) ||
+        lr.from.toLowerCase().includes(searchLower) ||
+        lr.to.toLowerCase().includes(searchLower) ||
+        consignorName.toLowerCase().includes(searchLower) ||
+        consigneeName.toLowerCase().includes(searchLower) ||
+        lr.status.toLowerCase().includes(searchLower);
+      
+      const matchesId = !initialFilters?.ids || initialFilters.ids.includes(lr._id);
 
-        const lrDate = new Date(lr.date);
-        lrDate.setHours(0, 0, 0, 0);
+      return matchesSearch && matchesId;
+    });
 
-        const start = startDate ? new Date(startDate) : null;
-        if(start) start.setHours(0,0,0,0);
-        const end = endDate ? new Date(endDate) : null;
-        if(end) end.setHours(0,0,0,0);
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      let aValue: any = '';
+      let bValue: any = '';
+      
+      switch (sortBy) {
+        case 'lrNumber':
+          aValue = a.lrNumber;
+          bValue = b.lrNumber;
+          break;
+        case 'date':
+          aValue = new Date(a.date);
+          bValue = new Date(b.date);
+          break;
+        case 'consignor':
+          aValue = (a.consignor?.name || '').toLowerCase();
+          bValue = (b.consignor?.name || '').toLowerCase();
+          break;
+        case 'consignee':
+          aValue = (a.consignee?.name || '').toLowerCase();
+          bValue = (b.consignee?.name || '').toLowerCase();
+          break;
+        case 'from':
+          aValue = a.from.toLowerCase();
+          bValue = b.from.toLowerCase();
+          break;
+        case 'to':
+          aValue = a.to.toLowerCase();
+          bValue = b.to.toLowerCase();
+          break;
+        case 'totalAmount':
+          aValue = a.totalAmount || 0;
+          bValue = b.totalAmount || 0;
+          break;
+        case 'status':
+          aValue = a.status.toLowerCase();
+          bValue = b.status.toLowerCase();
+          break;
+        default:
+          aValue = a.lrNumber;
+          bValue = b.lrNumber;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
 
-        const matchesStartDate = !start || lrDate >= start;
-        const matchesEndDate = !end || lrDate <= end;
-        const matchesCustomer = selectedCustomerId === '' ||
-          lr.consignor?._id === selectedCustomerId ||
-          lr.consignee?._id === selectedCustomerId;
-        
-        // Handle status filtering including the special "unbilled" case
-        let matchesStatus = true;
-        if (selectedStatus.length > 0) {
-          if (selectedStatus.includes(LorryReceiptStatus.UNBILLED)) {
-            // If "Unbilled" is selected, show LRs that are not in any invoice
-            matchesStatus = !invoicedLrIds.has(lr._id);
-          } else {
-            // For other statuses, use normal status matching
-            matchesStatus = selectedStatus.includes(lr.status);
-          }
-        }
-        
-        const matchesId = !initialFilters?.ids || initialFilters.ids.includes(lr._id);
-
-        return matchesSearch && matchesStartDate && matchesEndDate && matchesCustomer && matchesStatus && matchesId;
-      })
-      .sort((a, b) => b.lrNumber - a.lrNumber); // Sort by new sequential ID
-  }, [lorryReceipts, invoices, searchTerm, startDate, endDate, selectedCustomerId, selectedStatus, initialFilters]);
+    return filtered;
+  }, [lorryReceipts, invoices, searchTerm, sortBy, sortOrder, initialFilters]);
 
   // Paginated LRs
   const paginatedLrs = useMemo(() => {
@@ -180,17 +211,13 @@ export const LorryReceipts: React.FC<LorryReceiptsProps> = ({ lorryReceipts, inv
 
   const totalPages = Math.ceil(filteredLrs.length / itemsPerPage);
 
-  // Reset to first page when filters change
+  // Reset to first page when search or sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, selectedCustomerId, selectedStatus]);
+  }, [searchTerm, sortBy, sortOrder]);
 
-  const handleClearFilters = () => {
+  const handleClearSearch = () => {
     setSearchTerm('');
-    setStartDate('');
-    setEndDate('');
-    setSelectedCustomerId('');
-    setSelectedStatus([]);
     setCurrentPage(1);
   };
 
@@ -213,50 +240,19 @@ export const LorryReceipts: React.FC<LorryReceiptsProps> = ({ lorryReceipts, inv
             </div>
         </div>
         
-        <FilterSection onClearFilters={handleClearFilters}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Input
-              type="text"
-              label="Search by LR No, Client, From, To..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              wrapperClassName="lg:col-span-3"
-              placeholder="Enter LR number, client name, from/to location..."
-            />
-            <Input 
-              label="Start Date" 
-              type="date" 
-              value={startDate} 
-              onChange={e => setStartDate(e.target.value)}
-              placeholder="Select start date"
-            />
-            <Input 
-              label="End Date" 
-              type="date" 
-              value={endDate} 
-              onChange={e => setEndDate(e.target.value)}
-              placeholder="Select end date"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-             <Select
-                label="Client"
-                value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-              >
-                <option value="">All Clients</option>
-                {customers.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </Select>
-             <Select
-                label="LR Status"
-                value={selectedStatus.length > 0 ? selectedStatus[0] : ''}
-                onChange={e => setSelectedStatus(e.target.value ? [e.target.value as LorryReceiptStatus] : [])}
-              >
-                <option value="">All Statuses</option>
-                {Object.values(LorryReceiptStatus).map(s => <option key={s} value={s}>{s}</option>)}
-              </Select>
-          </div>
-        </FilterSection>
+        <UniversalSearchSort
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by LR number, consignor, consignee, from/to location, or status..."
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          sortOrder={sortOrder}
+          onSortOrderChange={setSortOrder}
+          sortOptions={sortOptions}
+          totalItems={lorryReceipts.length}
+          filteredItems={filteredLrs.length}
+          onClearSearch={handleClearSearch}
+        />
       </Card>
 
       <Card>

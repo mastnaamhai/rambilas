@@ -53,6 +53,12 @@ const FORMAT_OPTIONS = [
     { value: 'zip', label: 'ZIP Archive', description: 'Compressed archive' }
 ];
 
+const JSON_FORMAT_OPTIONS = [
+    { value: 'standard', label: 'Standard JSON', description: 'Simple JSON format' },
+    { value: 'gst', label: 'GST Filing', description: 'GST-compliant format for tax filing' },
+    { value: 'tax', label: 'Income Tax', description: 'Enhanced format for income tax filing' }
+];
+
 const STATUS_FILTER_OPTIONS = [
     { value: 'all', label: 'All Status' },
     { value: 'pending', label: 'Pending' },
@@ -84,6 +90,7 @@ export const EnhancedExportInterface: React.FC<EnhancedExportInterfaceProps> = (
     const [filename, setFilename] = useState<string>('');
     const [includeHeaders, setIncludeHeaders] = useState<boolean>(true);
     const [compression, setCompression] = useState<boolean>(false);
+    const [jsonFormat, setJsonFormat] = useState<string>('standard');
     const [exportJobs, setExportJobs] = useState<ExportJob[]>([]);
     const [templates, setTemplates] = useState<ExportTemplate[]>([]);
     const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -227,7 +234,8 @@ export const EnhancedExportInterface: React.FC<EnhancedExportInterfaceProps> = (
                     } : undefined,
                     filters: statusFilter !== 'all' ? { status: statusFilter } : undefined,
                     customFields: customFields.length > 0 ? customFields : undefined,
-                    compression
+                    compression,
+                    jsonFormat: selectedFormat === 'json' ? jsonFormat as any : undefined
                 }, (progress) => {
                     setCurrentProgress(progress);
                     setExportJobs(prev => prev.map(job => 
@@ -242,7 +250,8 @@ export const EnhancedExportInterface: React.FC<EnhancedExportInterfaceProps> = (
                     format: selectedFormat as any,
                     filename,
                     includeHeaders,
-                    compression
+                    compression,
+                    jsonFormat: selectedFormat === 'json' ? jsonFormat as any : undefined
                 }, (progress) => {
                     setCurrentProgress(progress);
                     setExportJobs(prev => prev.map(job => 
@@ -277,6 +286,17 @@ export const EnhancedExportInterface: React.FC<EnhancedExportInterfaceProps> = (
         setSelectedFormat(template.format as any);
         setFilename(`${template.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`);
         setCustomFields(template.fields.includes('*') ? [] : template.fields);
+        
+        // Set JSON format based on template
+        if (template.format === 'json') {
+            if (template.id === 'gst-filing') {
+                setJsonFormat('gst');
+            } else if (template.id === 'income-tax') {
+                setJsonFormat('tax');
+            } else {
+                setJsonFormat('standard');
+            }
+        }
         
         // Apply template filters
         if (template.filters.status) {
@@ -381,6 +401,24 @@ export const EnhancedExportInterface: React.FC<EnhancedExportInterfaceProps> = (
                                         options={FORMAT_OPTIONS}
                                     />
                                 </div>
+
+                                {selectedFormat === 'json' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                            JSON Format
+                                        </label>
+                                        <Select
+                                            value={jsonFormat}
+                                            onChange={(e) => setJsonFormat(e.target.value)}
+                                            options={JSON_FORMAT_OPTIONS}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            {jsonFormat === 'gst' && 'Optimized for GST filing with enhanced tax details'}
+                                            {jsonFormat === 'tax' && 'Enhanced format for income tax filing with financial summaries'}
+                                            {jsonFormat === 'standard' && 'Simple JSON format for general use'}
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -45,6 +45,14 @@ const KpiCard: React.FC<{ title: string; value: string | number; icon: string, o
 );
 
 export const Dashboard: React.FC<DashboardProps> = ({ lorryReceipts, invoices, truckHiringNotes, onViewChange, onUpdateLrStatus, onDeleteLr, onDeleteInvoice }) => {
+  // Debug logging
+  console.log('=== DASHBOARD DATA DEBUG ===');
+  console.log('Lorry Receipts count:', lorryReceipts?.length || 0);
+  console.log('Invoices count:', invoices?.length || 0);
+  console.log('Truck Hiring Notes count:', truckHiringNotes?.length || 0);
+  console.log('Latest LR numbers:', lorryReceipts?.slice(0, 3).map(lr => lr.lrNumber) || []);
+  console.log('Latest Invoice numbers:', invoices?.slice(0, 3).map(inv => inv.invoiceNumber) || []);
+  
   const kpis = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

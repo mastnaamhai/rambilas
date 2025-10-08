@@ -36,6 +36,8 @@ export const AppLayout: React.FC = () => {
     deleteLr,
     deleteInvoice,
     handleResetData,
+    handleResetBusinessData,
+    handleResetAllData,
     handleBackup,
     handleRestore
   } = useAppData();
@@ -63,10 +65,15 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  const handleChangePassword = async (_currentPassword: string, _newPassword: string): Promise<{success: boolean, message: string}> => {
-    // For now, password changes are not supported as we use a fixed backend password
-    // In a production system, you would implement proper password change functionality
-    return { success: false, message: "Password changes are not currently supported. Please contact your administrator." };
+  const handleChangePassword = async (currentPassword: string, newPassword: string): Promise<{success: boolean, message: string}> => {
+    try {
+      const { changePassword } = await import('../services/userService');
+      const result = await changePassword(currentPassword, newPassword);
+      return result;
+    } catch (error) {
+      console.error('Password change error:', error);
+      return { success: false, message: "Failed to change password. Please try again." };
+    }
   };
 
   const saveCustomer = async (customerData: any): Promise<any> => {
@@ -118,11 +125,14 @@ export const AppLayout: React.FC = () => {
     saveCustomer,
     handleDeleteCustomer,
     handleResetData,
+    handleResetBusinessData,
+    handleResetAllData,
     handleBackup,
     handleRestore,
     handleChangePassword,
     saveCompanyInfo,
     fetchAllData,
+    fetchCustomers,
     
     // Navigation
     navigate,

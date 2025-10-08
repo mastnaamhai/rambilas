@@ -1,219 +1,208 @@
-# TranspoTruck - Standalone Logistics Management System
+# TranspoTruck - Logistics Management System
 
-A comprehensive, production-ready **standalone** logistics management application for creating and managing Lorry Receipts (LRs), Invoices, and Truck Hiring Notes with full lifecycle tracking and PDF generation capabilities.
+A comprehensive logistics management system built with React, TypeScript, Node.js, and MongoDB. This application helps manage truck hiring, invoices, payments, and customer data for logistics companies.
 
-> **Standalone Application**: This is a self-contained application with no external repository dependencies or remote connections.
+## 🚀 Live Demo
 
-## 📦 Standalone Benefits
+- **Frontend**: [https://ttruck.netlify.app](https://ttruck.netlify.app)
+- **Backend API**: [https://rambilas.onrender.com](https://rambilas.onrender.com)
 
-- **No Git Dependencies**: Completely independent of any external repositories
-- **Self-Contained**: All code and configuration in one place
-- **Easy Deployment**: Can be deployed anywhere without external references
-- **Clean History**: Fresh Git history with no remote connections
-- **Portable**: Can be moved, copied, or shared without breaking references
+## ✨ Features
 
-## 🚀 Features
+- **Customer Management**: Add, edit, and manage customer information
+- **Invoice Generation**: Create and manage invoices with GST calculations
+- **Lorry Receipt Management**: Track and manage lorry receipts
+- **Truck Hiring Notes**: Manage truck hiring documentation
+- **Payment Tracking**: Track payments and pending amounts
+- **Ledger Management**: Comprehensive financial ledger system
+- **Export Functionality**: Export data to Excel, PDF formats
+- **GST Compliance**: Built-in GST calculations and reporting
+- **Responsive Design**: Mobile-friendly interface
 
-- **Lorry Receipt Management**: Create, edit, and track Lorry Receipts (LRs) with status updates
-- **Invoice Generation**: Generate invoices with automatic GST calculations (CGST/SGST/IGST)
-- **Truck Hiring Notes**: Manage truck hiring agreements and payments
-- **Customer Management**: Comprehensive customer database with GST details
-- **Vehicle Management**: Track vehicle information and assignments
-- **Payment Tracking**: Record and track payments with multiple payment modes
-- **PDF Generation**: Generate professional PDF documents for all documents
-- **Responsive Design**: Mobile-optimized interface for field operations
-- **Real-time Status Updates**: Automatic status updates based on business logic
-- **Cloud-Native**: Optimized for Render and Netlify deployment
-
-## 🛠 Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
-- **React 19** with TypeScript
-- **Vite** for fast development and building
-- **Custom UI Components** for consistent design
-- **PDF Generation** with jsPDF
+- React 19.1.1
+- TypeScript
+- Vite
+- React Router DOM
+- Axios for API calls
+- jsPDF for PDF generation
+- HTML2Canvas for PDF rendering
+- XLSX for Excel export
 
 ### Backend
-- **Node.js 18** with Express
-- **TypeScript** for type safety
-- **MongoDB** with Mongoose ODM
-- **JWT Authentication**
-- **File Upload** with Multer
+- Node.js
+- Express.js
+- TypeScript
+- MongoDB with Mongoose
+- JWT Authentication
+- CORS enabled
+- Sharp for image processing
 
-### Infrastructure
-- **Render** for backend deployment
-- **Netlify** for frontend deployment
-- **MongoDB Atlas** for managed database
-
-## 📁 Project Structure
-
-```
-transpotruck/
-├── backend/                 # Backend API server
-│   ├── src/
-│   │   ├── config/         # Configuration files
-│   │   ├── controllers/    # Route controllers
-│   │   ├── models/         # MongoDB models
-│   │   ├── routes/         # API routes
-│   │   ├── utils/          # Utility functions
-│   │   └── middleware/     # Express middleware
-│   └── package.json
-├── components/              # React components
-│   ├── ui/                 # Reusable UI components
-│   └── *.tsx              # Feature components
-├── services/               # Frontend API services
-├── hooks/                  # Custom React hooks
-├── types.ts               # Shared TypeScript types
-├── constants.ts           # Application constants
-├── Dockerfile             # Multi-stage Docker build
-├── cloudbuild.yaml        # Google Cloud Build config
-└── deploy.sh              # Deployment script
-```
-
-## 🚀 Quick Start
+## 📦 Installation
 
 ### Prerequisites
-
-- **Node.js 18+**
-- **MongoDB Atlas** account (or local MongoDB)
-- **Docker** (optional, for containerization)
+- Node.js (v18 or higher)
+- MongoDB Atlas account or local MongoDB
+- Git
 
 ### Local Development
 
-1. **Setup and Install**
+1. **Clone the repository**
    ```bash
-   # Navigate to the application directory
-   cd /path/to/rambilas
-   
+   git clone <repository-url>
+   cd rambilas
+   ```
+
+2. **Install dependencies**
+   ```bash
    # Install frontend dependencies
    npm install
    
    # Install backend dependencies
-   cd backend && npm install
+   cd backend
+   npm install
+   cd ..
    ```
 
-2. **Environment Setup**
+3. **Environment Setup**
    ```bash
+   # Copy environment example file
    cp env.example .env
-   # Edit .env with your MongoDB URI and other settings
-   ```
-
-3. **Start Development Servers**
-   ```bash
-   # Terminal 1: Backend
-   cd backend && npm run dev
    
-   # Terminal 2: Frontend
-   npm run dev
+   # Edit .env with your configuration
+   nano .env
    ```
 
-4. **Access Application**
-   - Frontend: http://localhost:5173 (development only)
-   - Backend API: http://localhost:8080 (development only)
-   - Health Check: http://localhost:8080/health (development only)
+4. **Start development servers**
+   ```bash
+   # Start both frontend and backend
+   npm run start-all
+   
+   # Or start individually
+   npm run start-frontend  # Frontend on http://localhost:5173
+   npm run start-backend   # Backend on http://localhost:8080
+   ```
+
+## 🔧 Environment Variables
+
+### Frontend (.env)
+```env
+VITE_API_URL=https://rambilas.onrender.com/api
+VITE_GSTIN_API_KEY=your_gstin_api_key_here
+```
+
+### Backend (.env)
+```env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/...
+PORT=8080
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173
+JWT_SECRET=your-super-secure-jwt-secret-key
+APP_PASSWORD_HASH=your-app-password-hash
+```
 
 ## 🚀 Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for simple deployment instructions.
+### Netlify (Frontend)
 
-### Required Environment Variables
+1. Connect your GitHub repository to Netlify
+2. Set build command: `npm run build`
+3. Set publish directory: `dist`
+4. Add environment variables in Netlify dashboard:
+   - `VITE_API_URL`: `https://rambilas.onrender.com/api`
+   - `VITE_GSTIN_API_KEY`: Your GSTIN API key
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `MONGODB_URI` | MongoDB connection string | ✅ |
-| `JWT_SECRET` | JWT signing secret (32+ chars) | ✅ |
-| `CORS_ORIGIN` | Allowed origins (* for any) | ✅ |
-| `VITE_GSTIN_API_KEY` | GST API key | ✅ |
-| `APP_PASSWORD_HASH` | App access password hash | ✅ |
+### Render (Backend)
 
-## 🔧 Configuration
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set build command: `cd backend && npm install && npm run build`
+4. Set start command: `cd backend && npm start`
+5. Add environment variables:
+   - `MONGODB_URI`: Your MongoDB connection string
+   - `CORS_ORIGIN`: `https://ttruck.netlify.app`
+   - `JWT_SECRET`: Generate a secure secret
+   - `APP_PASSWORD_HASH`: Generate a secure hash
+   - `NODE_ENV`: `production`
 
-### Database Configuration
-The application uses MongoDB with the following collections:
-- `customers` - Customer information
-- `vehicles` - Vehicle details
-- `lorryreceipts` - Lorry Receipt documents
-- `invoices` - Invoice documents
-- `truckhiringnotes` - Truck Hiring Notes
-- `payments` - Payment records
-- `counters` - Auto-increment counters
+## 📁 Project Structure
 
-### Security Features
-- **JWT Authentication** for API access
-- **CORS Protection** with configurable origins
-- **Input Validation** using Zod schemas
-- **File Upload Security** with type validation
-- **Environment-based Configuration**
+```
+rambilas/
+├── components/           # React components
+│   ├── ui/              # Reusable UI components
+│   └── export/          # Export-related components
+├── services/            # API service functions
+├── hooks/               # Custom React hooks
+├── types/               # TypeScript type definitions
+├── constants/           # Application constants
+├── backend/             # Backend API
+│   ├── src/
+│   │   ├── controllers/ # Route controllers
+│   │   ├── models/      # Database models
+│   │   ├── routes/      # API routes
+│   │   ├── middleware/  # Express middleware
+│   │   └── utils/       # Utility functions
+│   └── dist/            # Compiled JavaScript
+├── dist/                # Frontend build output
+└── public/              # Static assets
+```
 
-## 📊 API Documentation
+## 🔐 Security Features
+
+- JWT-based authentication
+- CORS protection
+- Input validation with Zod
+- Password hashing
+- Environment variable protection
+- Rate limiting (can be added)
+
+## 📊 API Endpoints
 
 ### Authentication
 - `POST /api/auth/login` - User login
 - `POST /api/auth/register` - User registration
 
-### Core Resources
-- `GET/POST /api/customers` - Customer management
-- `GET/POST /api/vehicles` - Vehicle management
-- `GET/POST /api/lorryreceipts` - Lorry Receipt management
-- `GET/POST /api/invoices` - Invoice management
-- `GET/POST /api/truckhiringnotes` - THN management
-- `GET/POST /api/payments` - Payment management
+### Customers
+- `GET /api/customers` - Get all customers
+- `POST /api/customers` - Create customer
+- `PUT /api/customers/:id` - Update customer
+- `DELETE /api/customers/:id` - Delete customer
 
-### Health & Monitoring
-- `GET /health` - Application health check
-- `GET /` - API status
+### Invoices
+- `GET /api/invoices` - Get all invoices
+- `POST /api/invoices` - Create invoice
+- `PUT /api/invoices/:id` - Update invoice
+- `DELETE /api/invoices/:id` - Delete invoice
 
-## 🛠 Development
+### Payments
+- `GET /api/payments` - Get all payments
+- `POST /api/payments` - Create payment
+- `PUT /api/payments/:id` - Update payment
 
-### Code Quality
-- **TypeScript** for type safety
-- **ESLint** for code linting
-- **Prettier** for code formatting
-- **Strict TypeScript** configuration
+## 🤝 Contributing
 
-### Build Process
-- **Multi-stage Docker** build for optimization
-- **Vite** for fast frontend builds
-- **TypeScript compilation** for backend
-- **Production optimizations** (minification, tree-shaking)
-
-### Testing
-```bash
-# Run backend tests
-cd backend && npm test
-
-# Run frontend tests
-npm test
-```
-
-## 📈 Performance Optimizations
-
-- **Docker Multi-stage Build** for smaller images
-- **Code Splitting** for faster loading
-- **Lazy Loading** of components
-- **Optimized Bundle Size** with Vite
-- **Database Indexing** for faster queries
-- **Connection Pooling** for MongoDB
-
-## 🔒 Security Best Practices
-
-- **Environment Variables** for sensitive data
-- **JWT Token** expiration
-- **Input Validation** on all endpoints
-- **CORS** configuration
-- **File Upload** restrictions
-- **Non-root User** in Docker container
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📝 License
 
-This project is proprietary software for TranspoTruck Logistics Management.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🤝 Support
+## 🆘 Support
 
-For technical support or questions, please contact the development team.
+For support, email support@transpotruck.com or create an issue in the GitHub repository.
 
----
+## 🔄 Version History
 
-**Version**: 1.0.0  
-**Last Updated**: 2024  
-**Environment**: Production Ready
+- **v1.0.0** - Initial release with core features
+  - Customer management
+  - Invoice generation
+  - Payment tracking
+  - Export functionality
+  - GST compliance

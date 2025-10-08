@@ -103,7 +103,7 @@ const LorryReceiptSchema = new Schema({
 LorryReceiptSchema.index({ date: -1, status: 1 });
 LorryReceiptSchema.index({ consignor: 1, date: -1 });
 LorryReceiptSchema.index({ consignee: 1, date: -1 });
-LorryReceiptSchema.index({ lrNumber: -1 });
+// Note: lrNumber index is automatically created by unique: true in schema
 // Text index for simple search on from/to
 LorryReceiptSchema.index({ from: 'text', to: 'text' });
 

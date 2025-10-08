@@ -53,7 +53,7 @@ export const UniversalPaymentHistoryModal: React.FC<UniversalPaymentHistoryModal
     const balanceDue = grandTotal - totalPaidAmount;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-start p-4 overflow-y-auto" data-form-modal="true">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-4 sm:my-8 max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <Card title={`Payment History for ${documentType} ${documentNumber}`}>
                     {/* Summary Cards */}

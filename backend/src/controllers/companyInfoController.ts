@@ -15,13 +15,13 @@ export const getCompanyInfo = asyncHandler(async (req: Request, res: Response) =
   // If no company info exists, create default one with real company information
   if (!companyInfo) {
     companyInfo = await CompanyInfo.create({
-      name: 'ALL INDIA LOGISTICS CHENNAI',
-      address: 'No.51-C, Shri Balaji Nagar, Part-1 Extension, Puzhal, Chennai - 600 066.',
-      state: 'Tamil Nadu',
+      name: 'TranspoTruck Logistics',
+      address: 'No.51-C, Transport Hub, Industrial Area, Mumbai - 400001.',
+      state: 'Maharashtra',
       phone1: '97907 00241',
       phone2: '90030 45541',
-      email: 'allindialogisticschennai@gmail.com',
-      website: 'www.allindialogisticschennai.in',
+      email: 'info@transpotruck.com',
+      website: 'www.transpotruck.com',
       gstin: '33BKTPR6363P1Z3',
       pan: 'BKTPR6363P',
       bankName: 'ICICI BANK',

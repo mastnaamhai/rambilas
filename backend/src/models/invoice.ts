@@ -62,7 +62,7 @@ const InvoiceSchema = new Schema({
 // Indexes for common queries
 InvoiceSchema.index({ customer: 1, date: -1 });
 InvoiceSchema.index({ status: 1, date: -1 });
-InvoiceSchema.index({ invoiceNumber: -1 });
+// Note: invoiceNumber index is automatically created by unique: true in schema
 
 // Virtual for total paid amount
 InvoiceSchema.virtual('paidAmount').get(function(this: IInvoice) {

@@ -6,21 +6,6 @@ export const paginationQuerySchema = z.object({
   limit: z.string().optional(),
 });
 
-export const invoiceListQuerySchema = paginationQuerySchema.extend({
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  customerId: z.string().optional(),
-  status: z.string().optional(),
-  search: z.string().optional(),
-});
-
-export const lrListQuerySchema = paginationQuerySchema.extend({
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  customerId: z.string().optional(),
-  status: z.string().optional(),
-  search: z.string().optional(),
-});
 
 export const createInvoiceSchema = z.object({
   invoiceNumber: z.number().positive().optional(),
@@ -154,7 +139,6 @@ export const backupDataSchema = z.object({
   invoices: z.array(z.any()),
   truckHiringNotes: z.array(z.any()),
   payments: z.array(z.any()),
-  counters: z.array(z.any()),
   numberingConfigs: z.array(z.any()),
   companyInfo: z.array(z.any()).optional(),
   bankAccounts: z.array(z.any()).optional(),

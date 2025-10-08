@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import Invoice from '../models/invoice';
 import LorryReceipt from '../models/lorryReceipt';
-import { getNextSequenceValue } from '../utils/sequence';
+import NumberingConfig from '../models/numbering';
 import { LorryReceiptStatus, InvoiceStatus } from '../types';
-import { invoiceListQuerySchema, createInvoiceSchema, updateInvoiceSchema } from '../utils/validation';
+import { paginationQuerySchema, createInvoiceSchema, updateInvoiceSchema } from '../utils/validation';
 import mongoose from 'mongoose';
 
 // Helper function to calculate freight total from LRs
@@ -26,25 +26,13 @@ const calculateFreightTotal = async (lrIds: string[]): Promise<{ freightTotal: n
 };
 
 export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
-  const { page = '1', limit = '20', ...filters } = invoiceListQuerySchema.parse(req.query);
-
-  const query: any = {};
-  if (filters.startDate) query.date = { ...query.date, $gte: new Date(filters.startDate) };
-  if (filters.endDate) query.date = { ...query.date, $lte: new Date(filters.endDate) };
-  if (filters.customerId) query.customer = filters.customerId;
-  if (filters.status) query.status = filters.status;
-  if (filters.search) {
-    query.$or = [
-      { invoiceNumber: { $regex: filters.search, $options: 'i' } },
-      { 'customer.name': { $regex: filters.search, $options: 'i' } },
-    ];
-  }
+  const { page = '1', limit = '20' } = paginationQuerySchema.parse(req.query);
 
   const pageNum = parseInt(page, 10);
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
-  const items = await Invoice.find(query)
+  const items = await Invoice.find()
     .populate('customer')
     .populate({
       path: 'lorryReceipts',
@@ -58,7 +46,7 @@ export const getInvoices = asyncHandler(async (req: Request, res: Response) => {
     .skip(skip)
     .limit(limitNum);
 
-  const total = await Invoice.countDocuments(query);
+  const total = await Invoice.countDocuments();
 
   res.json({ items, total, page: pageNum, limit: limitNum });
 });
@@ -112,8 +100,9 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     console.log('Database name:', mongoose.connection.name);
     
     console.log('About to validate with schema...');
+    let invoiceData;
     try {
-      const invoiceData = createInvoiceSchema.parse(transformedData);
+      invoiceData = createInvoiceSchema.parse(transformedData);
       console.log('Validation successful! Validated data:', JSON.stringify(invoiceData, null, 2));
     } catch (validationError) {
       console.error('Validation failed:', validationError);
@@ -121,28 +110,40 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
       throw validationError;
     }
     
-    const invoiceData = createInvoiceSchema.parse(transformedData);
-    
     // Calculate freight total from selected LRs
     const { freightTotal, hasZeroFreight } = await calculateFreightTotal(invoiceData.lorryReceipts);
     console.log('Calculated freight total:', freightTotal);
     console.log('Has zero freight LRs:', hasZeroFreight);
     
     // Use custom Invoice number if provided, otherwise generate one
-    let invoiceNumber;
-    if (invoiceData.invoiceNumber) {
-      invoiceNumber = invoiceData.invoiceNumber;
-      console.log('Using custom Invoice number:', invoiceNumber);
-    } else {
-      try {
-        invoiceNumber = await getNextSequenceValue('invoice');
-        console.log('Generated Invoice number:', invoiceNumber);
-      } catch (seqError) {
-        console.error('Sequence generation error:', seqError);
-        // Fallback to timestamp-based number
-        invoiceNumber = Date.now();
-        console.log('Using fallback Invoice number:', invoiceNumber);
+    let invoiceNumber = invoiceData.invoiceNumber;
+    if (!invoiceNumber) {
+      let config = await NumberingConfig.findOne({ type: 'invoice' });
+      if (!config) {
+        // Initialize numbering config for invoice if it doesn't exist
+        config = await NumberingConfig.create({
+          type: 'invoice',
+          startingNumber: 1001,
+          currentNumber: 1001,
+          prefix: 'INV'
+        });
+        console.log('Created new invoice numbering config');
       }
+      
+      invoiceNumber = config.currentNumber;
+      config.currentNumber = config.currentNumber + 1;
+      await config.save();
+      console.log('Generated Invoice number:', invoiceNumber);
+    } else {
+      // Validate manual entry for uniqueness
+      const existingInvoice = await Invoice.findOne({ invoiceNumber });
+      if (existingInvoice) {
+        res.status(400).json({ 
+          message: 'Invoice number already exists. Please enter a different number.' 
+        });
+        return;
+      }
+      console.log('Using custom Invoice number:', invoiceNumber);
     }
     
     // Ensure all required fields are present

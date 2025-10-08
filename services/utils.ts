@@ -63,15 +63,23 @@ export const getCurrentDate = () => {
 };
 
 // Function to fetch customer details from a GSTIN API
-// The API key should be configured in the environment variables
-const GSTIN_API_KEY = (() => {
-    const envKey = import.meta.env.VITE_GSTIN_API_KEY;
-    // If the environment key is not available, use the new production key
-    if (!envKey || envKey.length < 32 || envKey.includes('$VITE_GSTIN_API_KEY')) {
-        return 'c1cc01d4e40144bf607b6a4fe5be83c6';
+// The API key should be configured in the environment variables or database
+const getGstApiKey = async (): Promise<string> => {
+    try {
+        // Try to get API key from database first
+        const { getApiKeyValue } = await import('./apiKeyService');
+        const apiKeyData = await getApiKeyValue('gstin', '');
+        return apiKeyData.keyValue;
+    } catch (error) {
+        console.log('Could not fetch API key from database, using environment fallback');
+        // Fallback to environment variable
+        const envKey = import.meta.env.VITE_GSTIN_API_KEY;
+        if (!envKey || envKey.length < 32 || envKey.includes('$VITE_GSTIN_API_KEY')) {
+            return 'c1cc01d4e40144bf607b6a4fe5be83c6';
+        }
+        return envKey;
     }
-    return envKey;
-})();
+};
 
 // Mock function for testing when API is not available
 const getMockCustomerDetails = (gstin: string): Omit<Customer, 'id'> => {
@@ -88,130 +96,6 @@ const getMockCustomerDetails = (gstin: string): Omit<Customer, 'id'> => {
     };
 }; 
 
-export const fetchGstDetails = async (gstin: string): Promise<Omit<Customer, 'id'>> => {
-    console.log(`Fetching details for GSTIN: ${gstin}`);
-    console.log(`API Key present: ${!!GSTIN_API_KEY}`);
-    console.log(`API Key length: ${GSTIN_API_KEY?.length || 0}`);
-    console.log(`Environment: ${import.meta.env.MODE}`);
-    console.log(`All env vars:`, import.meta.env);
-
-    if (!GSTIN_API_KEY || GSTIN_API_KEY.trim() === '') {
-        throw new Error('GSTIN API Key is not configured. Please configure VITE_GSTIN_API_KEY in your deployment environment.');
-    }
-
-    // Validate GSTIN format (15 characters, alphanumeric)
-    if (!gstin || gstin.length !== 15 || !/^[A-Z0-9]{15}$/.test(gstin)) {
-        throw new Error('Please enter a valid 15-digit GSTIN.');
-    }
-
-    // Production API call
-    const baseUrl = 'https://sheet.gstincheck.co.in';
-    const apiUrl = `${baseUrl}/check/${GSTIN_API_KEY}/${gstin}`;
-    console.log(`API URL: ${apiUrl}`);
-
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-            },
-            // Add timeout to prevent hanging requests
-            signal: AbortSignal.timeout(30000) // 30 second timeout
-        });
-        
-        console.log(`Response status: ${response.status}`);
-        console.log(`Response headers:`, [...response.headers.entries()]);
-
-        if (!response.ok) {
-            // Handle HTTP errors (e.g., 404, 401, 500)
-            const errorText = await response.text();
-            console.error(`HTTP Error: ${response.status} - ${errorText}`);
-            
-            if (response.status === 401) {
-                throw new Error('GST API authentication failed. Please check API key configuration.');
-            } else if (response.status === 429) {
-                throw new Error('GST API rate limit exceeded. Please try again later.');
-            } else if (response.status >= 500) {
-                throw new Error('GST API server error. Please try again later.');
-            } else {
-                throw new Error(`API call failed with status ${response.status}: ${errorText}`);
-            }
-        }
-
-        const data = await response.json();
-        console.log('API Response:', data);
-
-        // Check if the API returned an error
-        if (!data.flag) {
-            const errorMessage = data.message || 'GSTIN not found or invalid';
-            console.error('GST API Error:', errorMessage);
-            throw new Error(errorMessage);
-        }
-
-        // The API response structure might be different from your Customer type.
-        // You'll need to map the API response data to your Customer type.
-        const apiData = data.data; // The actual details are nested under a 'data' key
-
-        if (!apiData) {
-            throw new Error(data.message || 'GSTIN data not found in response.');
-        }
-
-        console.log('API Data:', apiData);
-
-        // Build address from the response structure
-        const addressComponents = [
-            apiData.pradr?.addr?.bno,
-            apiData.pradr?.addr?.bnm,
-            apiData.pradr?.addr?.st,
-            apiData.pradr?.addr?.loc,
-            apiData.pradr?.addr?.dst,
-        ].filter(Boolean); // Filter out empty/null/undefined parts
-
-        // Use the full address from pradr.adr if available, otherwise build from components
-        const fullAddress = apiData.pradr?.adr || addressComponents.join(', ') + (apiData.pradr?.addr?.pncd ? ` - ${apiData.pradr.addr.pncd}` : '');
-
-        const customerDetails: Omit<Customer, 'id'> = {
-            name: apiData.lgnm || '',
-            tradeName: apiData.tradeNam || '',
-            address: fullAddress,
-            state: apiData.pradr?.addr?.stcd || apiData.stj?.split(',')[0]?.replace('State - ', '') || '',
-            gstin: apiData.gstin || gstin,
-            contactPerson: '',
-            contactPhone: '',
-            contactEmail: '',
-        };
-
-        console.log('Parsed customer details:', customerDetails);
-        return customerDetails;
-
-    } catch (error: any) {
-        console.error("Error fetching GSTIN details:", error);
-        
-        // In development mode, use mock data as fallback
-        if (import.meta.env.DEV) {
-            console.log('Development mode: Using mock data as fallback');
-            return getMockCustomerDetails(gstin);
-        }
-        
-        // Handle different types of errors
-        if (error.name === 'AbortError') {
-            throw new Error('Request timeout. GST API is taking too long to respond. Please try again.');
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error('Network error. Please check your internet connection and try again.');
-        } else if (error.message.includes('GSTIN not found') || error.message.includes('GST Number not found')) {
-            throw new Error('GSTIN not found. Please verify the GSTIN number or enter customer details manually.');
-        } else if (error.message.includes('server error') || error.message.includes('500')) {
-            throw new Error('GST API is temporarily unavailable. Please enter customer details manually.');
-        } else if (error.message.includes('API Key') || error.message.includes('authentication')) {
-            throw new Error('GST API configuration issue. Please contact administrator.');
-        } else if (error.message.includes('rate limit')) {
-            throw new Error('Too many requests. Please wait a moment and try again.');
-        } else {
-            throw new Error(`Failed to fetch GSTIN details: ${error.message}`);
-        }
-    }
-};
 
 /**
  * Determines the origin location text for invoice based on Lorry Receipt data

@@ -22,7 +22,7 @@ export const Login: React.FC = () => {
             <Logo size="md" showText={false} />
             <div className="ml-3">
               <h1 className="text-xl font-bold text-gray-800">TranspoTruck</h1>
-              <p className="text-sm text-gray-600">Transport Management</p>
+              <p className="text-sm text-gray-600">Transport Management System</p>
             </div>
           </div>
         </div>
@@ -34,11 +34,11 @@ export const Login: React.FC = () => {
             <div className="flex items-center justify-center mb-4">
               <Logo size="lg" showText={true} className="justify-center" />
               <div className="ml-4">
-                <h1 className="text-2xl font-bold text-gray-800">CHENNAI</h1>
-                <p className="text-gray-600">Portal</p>
+                <h1 className="text-2xl font-bold text-gray-800">TranspoTruck</h1>
+                <p className="text-gray-600">Transport Management</p>
               </div>
             </div>
-            <h2 className="text-xl text-gray-600 mt-4">Portal Login</h2>
+            <h2 className="text-xl text-gray-600 mt-4">System Login</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

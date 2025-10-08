@@ -1,12 +1,12 @@
 import express from 'express';
 import { generateToken } from '../middleware/auth';
 import { hashPassword } from '../utils/auth';
+import { User } from '../models/user';
 
 const router = express.Router();
 
-// Simple password-based authentication
-// Default password is 'admin123' - change this in production
-const APP_PASSWORD_HASH = process.env.APP_PASSWORD_HASH || '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // SHA-256 of 'admin123'
+// Fallback password for backward compatibility
+const FALLBACK_PASSWORD_HASH = '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9'; // SHA-256 of 'admin123'
 
 // @desc    Login user
 // @route   POST /api/auth/login
@@ -21,34 +21,43 @@ router.post('/login', async (req, res) => {
     // Hash the provided password
     const hashedPassword = await hashPassword(password);
     
-    // Debug logging
-    console.log('Login attempt:', {
-      providedPassword: password,
-      hashedPassword: hashedPassword,
-      expectedHash: APP_PASSWORD_HASH,
-      hashMatch: hashedPassword === APP_PASSWORD_HASH,
-      envVar: process.env.APP_PASSWORD_HASH
-    });
+    // Try to find user in database first
+    let user = await User.findOne();
     
-    // For now, we'll use a simple password check
-    // In production, you should store this in a database
-    if (hashedPassword === APP_PASSWORD_HASH) {
-      const token = generateToken({ userId: 'admin', role: 'admin' });
-      res.json({ 
-        success: true, 
-        token,
-        message: 'Login successful' 
-      });
+    if (user) {
+      // User exists in database, check password
+      if (user.passwordHash === hashedPassword) {
+        const token = generateToken({ userId: user._id });
+        res.json({ 
+          success: true, 
+          token,
+          message: 'Login successful' 
+        });
+        return;
+      }
     } else {
-      res.status(401).json({ 
-        message: 'Invalid password',
-        debug: {
-          providedHash: hashedPassword,
-          expectedHash: APP_PASSWORD_HASH,
-          envVar: process.env.APP_PASSWORD_HASH
-        }
-      });
+      // No user in database, check against fallback password
+      if (hashedPassword === FALLBACK_PASSWORD_HASH) {
+        // Create user in database with fallback password
+        user = new User({
+          passwordHash: hashedPassword
+        });
+        await user.save();
+        
+        const token = generateToken({ userId: user._id });
+        res.json({ 
+          success: true, 
+          token,
+          message: 'Login successful' 
+        });
+        return;
+      }
     }
+    
+    // Invalid password
+    res.status(401).json({ 
+      message: 'Invalid password'
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Internal server error' });

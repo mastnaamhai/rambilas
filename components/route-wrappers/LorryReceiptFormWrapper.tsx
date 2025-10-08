@@ -26,6 +26,10 @@ export const LorryReceiptFormWrapper: React.FC = () => {
       customers={context.customers} 
       truckHiringNotes={context.truckHiringNotes} 
       onSaveCustomer={context.saveCustomer} 
+      onRefreshCustomers={async () => {
+        await context.fetchCustomers();
+        return context.customers;
+      }}
       lorryReceipts={context.lorryReceipts}
       existingLr={existingLr}
     />

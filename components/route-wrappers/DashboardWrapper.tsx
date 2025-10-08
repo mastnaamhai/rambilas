@@ -1,8 +1,7 @@
-import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Dashboard } from '../Dashboard';
 
-export const DashboardWrapper: React.FC = () => {
+export const DashboardWrapper = () => {
   const context = useOutletContext<any>();
   
   return (

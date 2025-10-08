@@ -45,10 +45,8 @@ export enum PaymentMode {
 }
 
 export enum RiskBearer {
-    TRANSPORTER = 'Transporter',
-    CARRIER = 'Carrier',
-    OWNER = 'Owner',
-    CONSIGNOR = 'Consignor',
+    CARRIER = "AT CARRIER'S RISK",
+    OWNER = "AT OWNER'S RISK",
 }
 
 export interface Customer {
@@ -114,11 +112,15 @@ export interface LorryReceipt {
       policyNo?: string;
       date?: string;
       amount?: number;
-      risk?: string;
   },
   invoiceNo: string;
   sealNo: string;
   remarks?: string;
+  // Additional sections for fixed layout boxes
+  demurrageCharges?: string;
+  notice?: string;
+  riskDeclaration?: string;
+  importantNotice?: string;
 }
 
 export interface Invoice {

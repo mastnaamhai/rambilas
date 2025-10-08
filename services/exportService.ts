@@ -1,7 +1,7 @@
 // Enhanced Export Service with multiple formats and advanced features
 
 export interface ExportOptions {
-    format: 'csv' | 'xlsx' | 'json' | 'pdf' | 'zip';
+    format: 'csv' | 'xlsx' | 'json' | 'pdf' | 'zip' | 'xml';
     filename: string;
     includeHeaders?: boolean;
     dateRange?: {
@@ -12,6 +12,8 @@ export interface ExportOptions {
     customFields?: string[];
     template?: string;
     compression?: boolean;
+    jsonFormat?: 'standard' | 'gst' | 'tax'; // Enhanced JSON formatting options
+    xmlFormat?: 'gstr1' | 'gstr3b' | 'standard'; // XML formatting options
 }
 
 export interface ExportProgress {
@@ -60,8 +62,82 @@ const convertToCSV = (data: object[]): string => {
     return csvRows.join('\n');
 };
 
-// JSON Conversion
-const convertToJSON = (data: object[]): string => {
+// JSON Conversion with enhanced formatting for GST/Income Tax
+const convertToJSON = (data: object[], options?: { format?: 'standard' | 'gst' | 'tax' }): string => {
+    if (options?.format === 'gst' || options?.format === 'tax') {
+        // Enhanced JSON structure for GST/Tax filing
+        const enhancedData = data.map(item => {
+            const enhancedItem: any = { ...item };
+            
+            // Add GST-specific fields if they exist
+            if ('gstType' in item) {
+                enhancedItem.gstDetails = {
+                    gstType: (item as any).gstType,
+                    cgstRate: (item as any).cgstRate || 0,
+                    sgstRate: (item as any).sgstRate || 0,
+                    igstRate: (item as any).igstRate || 0,
+                    cgstAmount: (item as any).cgstAmount || 0,
+                    sgstAmount: (item as any).sgstAmount || 0,
+                    igstAmount: (item as any).igstAmount || 0,
+                    isRcm: (item as any).isRcm || false,
+                    isManualGst: (item as any).isManualGst || false
+                };
+            }
+            
+            // Add financial summary
+            if ('totalAmount' in item || 'amount' in item) {
+                enhancedItem.financialSummary = {
+                    totalAmount: (item as any).totalAmount || (item as any).amount || 0,
+                    grandTotal: (item as any).grandTotal || (item as any).totalAmount || (item as any).amount || 0,
+                    status: (item as any).status || 'Unknown'
+                };
+            }
+            
+            // Add customer details if available
+            if ('customer' in item && (item as any).customer) {
+                enhancedItem.customerDetails = {
+                    name: (item as any).customer.name,
+                    gstin: (item as any).customer.gstin,
+                    state: (item as any).customer.state,
+                    address: (item as any).customer.address
+                };
+            }
+            
+            // Add export metadata
+            enhancedItem.exportMetadata = {
+                exportedAt: new Date().toISOString(),
+                exportType: options.format,
+                version: '1.0'
+            };
+            
+            return enhancedItem;
+        });
+        
+        const exportStructure = {
+            exportInfo: {
+                generatedAt: new Date().toISOString(),
+                format: options.format,
+                version: '1.0',
+                purpose: options.format === 'gst' ? 'GST Filing' : 'Income Tax Filing',
+                totalRecords: enhancedData.length
+            },
+            data: enhancedData,
+            summary: {
+                totalAmount: enhancedData.reduce((sum, item) => {
+                    return sum + ((item as any).totalAmount || (item as any).amount || 0);
+                }, 0),
+                recordCount: enhancedData.length,
+                dateRange: {
+                    start: enhancedData.length > 0 ? Math.min(...enhancedData.map(item => new Date((item as any).date).getTime())) : null,
+                    end: enhancedData.length > 0 ? Math.max(...enhancedData.map(item => new Date((item as any).date).getTime())) : null
+                }
+            }
+        };
+        
+        return JSON.stringify(exportStructure, null, 2);
+    }
+    
+    // Standard JSON format
     return JSON.stringify(data, null, 2);
 };
 
@@ -76,6 +152,103 @@ const convertToExcel = async (data: object[]): Promise<Blob> => {
         const csvString = convertToCSV(data);
         return new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     }
+};
+
+// XML Conversion with GST-specific formats
+const convertToXML = (data: object[], options?: { format?: 'gstr1' | 'gstr3b' | 'standard' }): string => {
+    if (options?.format === 'gstr1') {
+        return convertToGSTR1XML(data);
+    } else if (options?.format === 'gstr3b') {
+        return convertToGSTR3BXML(data);
+    } else {
+        return convertToStandardXML(data);
+    }
+};
+
+// GSTR-1 XML format
+const convertToGSTR1XML = (data: object[]): string => {
+    const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>';
+    const gstHeader = '<GSTReturn xmlns="urn:gst:gstreturn:1.0">';
+    const gstFooter = '</GSTReturn>';
+    
+    // This is a simplified GSTR-1 structure - in production, you'd need the exact GST schema
+    const b2bSection = data.map(item => {
+        const inv = item as any;
+        return `
+        <B2B>
+            <ctin>${inv.customer?.gstin || ''}</ctin>
+            <cname>${inv.customer?.name || ''}</cname>
+            <inv>
+                <inum>${inv.invoiceNumber || ''}</inum>
+                <idt>${inv.date || ''}</idt>
+                <val>${inv.grandTotal || 0}</val>
+                <pos>${inv.customer?.state || ''}</pos>
+                <rchrg>N</rchrg>
+                <inv_typ>R</inv_typ>
+                <itms>
+                    <itm>
+                        <rt>${(inv.cgstRate || 0) + (inv.sgstRate || 0) + (inv.igstRate || 0)}</rt>
+                        <txval>${inv.totalAmount || 0}</txval>
+                        <iamt>${(inv.cgstAmount || 0) + (inv.sgstAmount || 0)}</iamt>
+                        <camt>${inv.cgstAmount || 0}</camt>
+                        <samt>${inv.sgstAmount || 0}</samt>
+                        <csamt>0</csamt>
+                    </itm>
+                </itms>
+            </inv>
+        </B2B>`;
+    }).join('');
+
+    return `${xmlHeader}\n${gstHeader}\n${b2bSection}\n${gstFooter}`;
+};
+
+// GSTR-3B XML format
+const convertToGSTR3BXML = (data: object[]): string => {
+    const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>';
+    const gstHeader = '<GSTReturn xmlns="urn:gst:gstreturn:1.0">';
+    const gstFooter = '</GSTReturn>';
+    
+    // Calculate totals
+    const totalTaxableValue = data.reduce((sum, item) => sum + ((item as any).totalAmount || 0), 0);
+    const totalCGST = data.reduce((sum, item) => sum + ((item as any).cgstAmount || 0), 0);
+    const totalSGST = data.reduce((sum, item) => sum + ((item as any).sgstAmount || 0), 0);
+    const totalIGST = data.reduce((sum, item) => sum + ((item as any).igstAmount || 0), 0);
+    
+    // This is a simplified GSTR-3B structure
+    const gstr3bContent = `
+    <GSTR3B>
+        <sup_details>
+            <osup_det>
+                <ty>G</ty>
+                <typ>B2B</typ>
+                <txval>${totalTaxableValue}</txval>
+                <iamt>${totalCGST + totalSGST}</iamt>
+                <camt>${totalCGST}</camt>
+                <samt>${totalSGST}</samt>
+                <csamt>0</csamt>
+            </osup_det>
+        </sup_details>
+    </GSTR3B>`;
+
+    return `${xmlHeader}\n${gstHeader}\n${gstr3bContent}\n${gstFooter}`;
+};
+
+// Standard XML format
+const convertToStandardXML = (data: object[]): string => {
+    const xmlHeader = '<?xml version="1.0" encoding="UTF-8"?>';
+    const rootStart = '<data>';
+    const rootEnd = '</data>';
+    
+    const items = data.map((item, index) => {
+        const itemXml = Object.entries(item).map(([key, value]) => {
+            const cleanKey = key.replace(/[^a-zA-Z0-9_]/g, '_');
+            return `    <${cleanKey}>${value}</${cleanKey}>`;
+        }).join('\n');
+        
+        return `  <item id="${index}">\n${itemXml}\n  </item>`;
+    }).join('\n');
+
+    return `${xmlHeader}\n${rootStart}\n${items}\n${rootEnd}`;
 };
 
 // ZIP Creation (simplified - will be enhanced later)
@@ -177,7 +350,7 @@ export const exportData = async (
                 break;
 
             case 'json':
-                const jsonString = convertToJSON(filteredData);
+                const jsonString = convertToJSON(filteredData, { format: options.jsonFormat || 'standard' });
                 blob = new Blob([jsonString], { type: 'application/json' });
                 mimeType = 'application/json';
                 extension = 'json';
@@ -197,6 +370,18 @@ export const exportData = async (
             case 'pdf':
                 // This would integrate with your existing PDF service
                 throw new Error('PDF export not implemented yet');
+
+            case 'xml':
+                onProgress?.({
+                    stage: 'generating',
+                    progress: 50,
+                    message: 'Generating XML file...'
+                });
+                const xmlString = convertToXML(filteredData, { format: options.xmlFormat || 'standard' });
+                blob = new Blob([xmlString], { type: 'application/xml;charset=utf-8;' });
+                mimeType = 'application/xml';
+                extension = 'xml';
+                break;
 
             case 'zip':
                 onProgress?.({
@@ -272,7 +457,7 @@ export const exportBulkData = async (
                 blob = new Blob([convertToCSV(dataSet.data)], { type: 'text/csv' });
                 break;
             case 'json':
-                blob = new Blob([convertToJSON(dataSet.data)], { type: 'application/json' });
+                blob = new Blob([convertToJSON(dataSet.data, { format: options.jsonFormat || 'standard' })], { type: 'application/json' });
                 break;
             case 'xlsx':
                 blob = await convertToExcel(dataSet.data);
@@ -316,6 +501,26 @@ export const getExportTemplates = (): ExportTemplate[] => [
         isDefault: true
     },
     {
+        id: 'gst-filing',
+        name: 'GST Filing Export',
+        description: 'Export data in GST-compliant JSON format for tax filing',
+        dataTypes: ['invoices', 'lorryReceipts'],
+        fields: ['*'],
+        format: 'json',
+        filters: {},
+        isDefault: false
+    },
+    {
+        id: 'income-tax',
+        name: 'Income Tax Export',
+        description: 'Export financial data in JSON format for income tax filing',
+        dataTypes: ['invoices', 'payments', 'truckHiringNotes'],
+        fields: ['*'],
+        format: 'json',
+        filters: {},
+        isDefault: false
+    },
+    {
         id: 'financial-summary',
         name: 'Financial Summary',
         description: 'Export financial data with summaries',
@@ -353,8 +558,8 @@ export const validateExportData = (data: object[]): { isValid: boolean; errors: 
         return { isValid: false, errors };
     }
 
-    // Check for required fields
-    const requiredFields = ['date', 'id'];
+    // Check for required fields - use _id instead of id since that's what our data structures use
+    const requiredFields = ['date', '_id'];
     const sampleItem = data[0];
     const missingFields = requiredFields.filter(field => !(field in sampleItem));
     
