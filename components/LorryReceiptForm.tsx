@@ -692,8 +692,9 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                 value={lr.from || ''}
                                                 onValueChange={(value) => handleValueChange('from', value)}
                                                 label="From"
-                                                placeholder="Type to search cities..."
+                                                placeholder="Type to search cities or enter manually..."
                                                 required
+                                                allowManualEntry={true}
                                             />
                                 </div>
                                         <div className="space-y-2">
@@ -703,8 +704,9 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                 value={lr.to || ''}
                                                 onValueChange={(value) => handleValueChange('to', value)}
                                                 label="To"
-                                                placeholder="Type to search cities..."
+                                                placeholder="Type to search cities or enter manually..."
                                                 required
+                                                allowManualEntry={true}
                                             />
                                 </div>
                             </div>

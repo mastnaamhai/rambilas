@@ -19,6 +19,7 @@ interface ValidatedCitySelectProps {
   disabled?: boolean;
   required?: boolean;
   className?: string;
+  allowManualEntry?: boolean; // Allow manual text entry without validation
 }
 
 export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
@@ -37,12 +38,18 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
   disabled = false,
   required = false,
   className = '',
+  allowManualEntry = false,
   ...props
 }) => {
+  // Use manual entry validation rules if allowManualEntry is true
+  const effectiveValidationRules = allowManualEntry 
+    ? { [fieldName]: { required: required, minLength: 1, message: `${label || 'Field'} is required` } }
+    : validationRules;
+
   const { error, touched, handleBlur, clearError } = useFieldValidation(
     fieldName,
     value,
-    validationRules,
+    effectiveValidationRules,
     { validateOnChange, validateOnBlur }
   );
 
@@ -50,6 +57,7 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [isFocused, setIsFocused] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -66,29 +74,54 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
 
   // Filter cities based on search term
   const filteredCities = useMemo(() => {
-    if (!searchTerm || searchTerm.length < 2) return [];
+    const cities = state ? getCitiesByState(state) : getAllCities();
+    
+    // If no search term, show popular cities (capitals and major cities)
+    if (!searchTerm || searchTerm.length === 0) {
+      return cities
+        .filter(city => city.isCapital || city.category === 'major')
+        .slice(0, 12);
+    }
+    
+    // If search term is only 1 character, show capitals and major cities that start with that character
+    if (searchTerm.length === 1) {
+      return cities
+        .filter(city => 
+          city.isCapital || 
+          city.category === 'major' ||
+          city.name.toLowerCase().startsWith(searchTerm.toLowerCase())
+        )
+        .slice(0, 10);
+    }
     
     return searchCities(searchTerm, state).slice(0, 15); // Limit to 15 results
   }, [searchTerm, state]);
 
   // Update search term when value changes externally
   useEffect(() => {
-    if (selectedCity && !isFocused) {
-      setSearchTerm(selectedCity.name);
-    } else if (!value && !isFocused) {
-      setSearchTerm('');
+    if (!isFocused) {
+      if (selectedCity) {
+        setSearchTerm(selectedCity.name);
+      } else if (value) {
+        setSearchTerm(value);
+      } else {
+        setSearchTerm('');
+      }
     }
   }, [selectedCity, value, isFocused]);
 
   // Handle click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside both input and dropdown
       if (listRef.current && !listRef.current.contains(event.target as Node) &&
           inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setIsOpen(false);
         setHighlightedIndex(-1);
         if (selectedCity) {
           setSearchTerm(selectedCity.name);
+        } else if (value) {
+          setSearchTerm(value);
         } else {
           setSearchTerm('');
         }
@@ -97,7 +130,7 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedCity]);
+  }, [selectedCity, value]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -139,20 +172,26 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchTerm = e.target.value;
     setSearchTerm(newSearchTerm);
-    setIsOpen(newSearchTerm.length >= 2);
-    setHighlightedIndex(-1);
     
-    // Clear selection if search term doesn't match selected city
-    if (selectedCity && !selectedCity.name.toLowerCase().includes(newSearchTerm.toLowerCase())) {
-      onValueChange('');
+    // Update the value immediately as user types
+    onValueChange(newSearchTerm);
+    
+    // Show dropdown for suggestions if allowManualEntry is false or if we have search results
+    if (!allowManualEntry) {
+      setIsOpen(newSearchTerm.length >= 1);
+      setHighlightedIndex(-1);
+    } else {
+      // For manual entry, show dropdown only if there are matching cities
+      const hasMatches = newSearchTerm.length >= 1 && filteredCities.length > 0;
+      setIsOpen(hasMatches);
+      setHighlightedIndex(-1);
     }
   };
 
   const handleInputFocus = () => {
     setIsFocused(true);
-    if (searchTerm.length >= 2) {
-      setIsOpen(true);
-    }
+    // Always show dropdown when focusing
+    setIsOpen(true);
   };
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -163,16 +202,29 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
     }
   };
 
-  const handleCitySelect = (city: IndianCity) => {
+  const handleCitySelect = (city: IndianCity, event?: React.MouseEvent | React.TouchEvent) => {
+    // Prevent duplicate selections
+    if (isSelecting) return;
+    
+    setIsSelecting(true);
+    
+    // Update the parent component's value
     onValueChange(city.name);
+    // Update internal search term
     setSearchTerm(city.name);
+    // Close dropdown
     setIsOpen(false);
     setHighlightedIndex(-1);
+    // Keep focus for better UX
     inputRef.current?.focus();
     
+    // Call optional callback
     if (onCitySelect) {
       onCitySelect(city);
     }
+    
+    // Reset selection flag after a short delay
+    setTimeout(() => setIsSelecting(false), 100);
   };
 
   // Determine validation state
@@ -208,10 +260,20 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
   };
 
   const getDisplayValue = () => {
+    // If we have a selected city, always show it
     if (selectedCity) {
       return selectedCity.name;
     }
-    return searchTerm;
+    // If we have a value (from parent) and not focused, show the value
+    if (value && !isFocused) {
+      return value;
+    }
+    // If focused, show what user is typing
+    if (isFocused) {
+      return searchTerm;
+    }
+    // Default to value if available
+    return value || searchTerm;
   };
 
   return (
@@ -267,7 +329,18 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
                   ? 'bg-indigo-50 text-indigo-700' 
                   : 'hover:bg-gray-50'
               }`}
-              onClick={() => handleCitySelect(city)}
+              onMouseDown={(e) => {
+                // Handle both mouse clicks and trackpad clicks
+                e.preventDefault();
+                e.stopPropagation();
+                handleCitySelect(city, e);
+              }}
+              onTouchStart={(e) => {
+                // Handle touch events for mobile/trackpad
+                e.preventDefault();
+                e.stopPropagation();
+                handleCitySelect(city, e);
+              }}
             >
               <div className="flex flex-col">
                 <div className="font-medium text-gray-900">
@@ -290,7 +363,7 @@ export const ValidatedCitySelect: React.FC<ValidatedCitySelectProps> = ({
         </ul>
       )}
 
-      {isOpen && searchTerm.length >= 2 && filteredCities.length === 0 && (
+      {isOpen && searchTerm.length >= 1 && filteredCities.length === 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 text-sm text-gray-500">
           No cities found matching "{searchTerm}"
         </div>
