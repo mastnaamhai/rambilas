@@ -37,10 +37,10 @@ This guide will help you deploy the TranspoTruck application to GitHub, Render (
 5. **Add Environment Variables:**
    ```
    NODE_ENV=production
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/...
+   MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
    CORS_ORIGIN=https://ttruck.netlify.app
-   JWT_SECRET=your-super-secure-jwt-secret-key-min-32-chars
-   APP_PASSWORD_HASH=your-app-password-hash
+   JWT_SECRET=your-super-secure-jwt-secret-key-change-this-in-production-min-32-chars
+   APP_PASSWORD_HASH=240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
    VITE_GSTIN_API_KEY=6aa257a9cb3cc85897248e981fb99cfb
    ```
 
