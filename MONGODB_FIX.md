@@ -12,7 +12,7 @@ The issue was that your MongoDB URI was missing the database name. I've fixed th
 
 ### Updated MongoDB URI:
 ```
-mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
+mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 ```
 
 ## 🚀 How to Fix in Render
@@ -23,7 +23,7 @@ mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/trans
 4. **Update the MONGODB_URI variable with the corrected value:**
 
 ```
-MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 ```
 
 5. **Save the changes**
@@ -35,7 +35,7 @@ Make sure you have all these environment variables set in Render:
 
 ```
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 CORS_ORIGIN=https://ttruck.netlify.app
 JWT_SECRET=your-super-secure-jwt-secret-key-change-this-in-production-min-32-chars
 APP_PASSWORD_HASH=240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9

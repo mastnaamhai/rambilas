@@ -5,9 +5,9 @@ Your Render deployment is failing because of MongoDB connection issues. Here's h
 
 ## ✅ Step 1: Fix MongoDB URI
 
-Your current URI was missing the database name. The corrected URI is:
+Your current URI is correct. Use this URI:
 ```
-mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
+mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 ```
 
 ## ✅ Step 2: MongoDB Atlas Network Access
@@ -30,7 +30,7 @@ In your Render dashboard, update these environment variables:
 
 ```
 NODE_ENV=production
-MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/transpotruck?retryWrites=true&w=majority&appName=Cluster0
+MONGODB_URI=mongodb+srv://bharatamazon70_db_user:admin123@cluster0.qb8hpbj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
 CORS_ORIGIN=https://ttruck.netlify.app
 JWT_SECRET=your-super-secure-jwt-secret-key-change-this-in-production-min-32-chars
 APP_PASSWORD_HASH=240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9
