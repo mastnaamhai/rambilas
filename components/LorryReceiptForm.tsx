@@ -615,7 +615,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-gray-700">
+                                        <label className="block text-sm font-medium text-gray-700 h-6 flex items-center">
                                             Consignment Note Number
                                         </label>
                                         {!allowManualLr ? (
@@ -643,6 +643,9 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     </div>
                                     
                                     <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-gray-700 h-6 flex items-center">
+                                            Date <span className="text-red-500">*</span>
+                                        </label>
                                         <ValidatedInput
                                             fieldName="date"
                                             validationRules={validationRules}
@@ -656,19 +659,14 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     </div>
                                     
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-medium text-gray-700">
-                                            Vehicle No. <span className="text-red-500">*</span>
-                                        </label>
                                         <AutocompleteInput
                                             name="vehicleNumber" 
                                             value={lr.vehicleNumber || ''} 
                                             onChange={(e) => {
                                                 const formatted = formatVehicleNumber(e.target.value);
-                                                handleChange({
-                                                    ...e,
-                                                    target: { ...e.target, value: formatted }
-                                                });
+                                                updateFormData('vehicleNumber', formatted, 'text');
                                             }}
+                                            label="Vehicle No."
                                             required 
                                             error={errors.vehicleNumber}
                                             suggestions={getVehicleSuggestions()}
@@ -694,29 +692,29 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <ValidatedCitySelect
-                                                fieldName="from"
-                                                validationRules={validationRules}
-                                                value={lr.from || ''}
-                                                onValueChange={(value) => handleValueChange('from', value)}
-                                                label="From"
-                                                placeholder="Type to search cities or enter manually..."
-                                                required
-                                                allowManualEntry={true}
-                                            />
+                                <div className="space-y-2">
+                                    <ValidatedCitySelect
+                                        fieldName="from"
+                                        validationRules={validationRules}
+                                        value={lr.from || ''}
+                                        onValueChange={(value) => handleValueChange('from', value)}
+                                        label="From"
+                                        placeholder="Type to search cities or enter manually..."
+                                        required
+                                        allowManualEntry={true}
+                                    />
                                 </div>
-                                        <div className="space-y-2">
-                                            <ValidatedCitySelect
-                                                fieldName="to"
-                                                validationRules={validationRules}
-                                                value={lr.to || ''}
-                                                onValueChange={(value) => handleValueChange('to', value)}
-                                                label="To"
-                                                placeholder="Type to search cities or enter manually..."
-                                                required
-                                                allowManualEntry={true}
-                                            />
+                                <div className="space-y-2">
+                                    <ValidatedCitySelect
+                                        fieldName="to"
+                                        validationRules={validationRules}
+                                        value={lr.to || ''}
+                                        onValueChange={(value) => handleValueChange('to', value)}
+                                        label="To"
+                                        placeholder="Type to search cities or enter manually..."
+                                        required
+                                        allowManualEntry={true}
+                                    />
                                 </div>
                             </div>
 
@@ -805,17 +803,17 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                    <label className="block text-sm font-medium text-gray-700 h-6 flex items-center">
                                         Consignor GSTIN
                                     </label>
-                                    <div className="flex items-end space-x-2">
+                                    <div className="flex items-center space-x-2">
                                         <Input 
                                             name="gstinConsignor" 
                                             value={gstinConsignor} 
                                             onChange={(e) => setGstinConsignor(e.target.value)} 
                                             placeholder="Enter 15-digit GSTIN"
                                             maxLength={15}
-                                            className="flex-grow"
+                                            className="flex-grow h-12"
                                         />
                                         <Button 
                                             type="button" 
@@ -823,6 +821,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             onClick={handleVerifyGstinConsignor} 
                                             disabled={isVerifyingConsignor || !gstinConsignor || gstinConsignor.length !== 15}
                                             size="sm"
+                                            className="h-12"
                                         >
                                             {isVerifyingConsignor ? 'Verifying...' : 'Fetch'}
                                         </Button>
@@ -831,6 +830,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             variant="outline" 
                                             onClick={() => setShowConsignorManual(!showConsignorManual)}
                                             size="sm"
+                                            className="h-12"
                                         >
                                             {showConsignorManual ? 'Hide Manual' : 'Add Manually'}
                                         </Button>
@@ -888,17 +888,17 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">
+                                    <label className="block text-sm font-medium text-gray-700 h-6 flex items-center">
                                         Consignee GSTIN
                                     </label>
-                                    <div className="flex items-end space-x-2">
+                                    <div className="flex items-center space-x-2">
                                         <Input 
                                             name="gstinConsignee" 
                                             value={gstinConsignee} 
                                             onChange={(e) => setGstinConsignee(e.target.value)} 
                                             placeholder="Enter 15-digit GSTIN"
                                             maxLength={15}
-                                            className="flex-grow"
+                                            className="flex-grow h-12"
                                         />
                                         <Button 
                                             type="button" 
@@ -906,6 +906,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             onClick={handleVerifyGstinConsignee} 
                                             disabled={isVerifyingConsignee || !gstinConsignee || gstinConsignee.length !== 15}
                                             size="sm"
+                                            className="h-12"
                                         >
                                             {isVerifyingConsignee ? 'Verifying...' : 'Fetch'}
                                         </Button>
@@ -914,11 +915,12 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             variant="outline" 
                                             onClick={() => setShowConsigneeManual(!showConsigneeManual)}
                                             size="sm"
+                                            className="h-12"
                                         >
                                             {showConsigneeManual ? 'Hide Manual' : 'Add Manually'}
                                         </Button>
+                                    </div>
                                 </div>
-                            </div>
                             </div>
                             {showConsigneeManual && (
                                 <div className="border border-gray-300 p-4 rounded-lg bg-gray-50 space-y-3 mt-4">
@@ -984,19 +986,17 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                 />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="block text-sm font-medium text-gray-700">
-                                                Packing Method <span className="text-red-500">*</span>
-                                            </label>
                                             <AutocompleteInput
-                                                    name={`packages.${index}.packingMethod`}
-                                                    value={pkg.packingMethod || ''}
-                                                    onChange={handleChange}
-                                                    suggestions={commonPackingMethods}
-                                                    placeholder="Select or type packing method"
-                                                    helpText="Select from list or type manually"
-                                                    required
-                                                    error={errors[`packages.${index}.packingMethod`]}
-                                                />
+                                                name={`packages.${index}.packingMethod`}
+                                                value={pkg.packingMethod || ''}
+                                                onChange={handleChange}
+                                                label="Packing Method"
+                                                suggestions={commonPackingMethods}
+                                                placeholder="Select or type packing method"
+                                                helpText="Select from list or type manually"
+                                                required
+                                                error={errors[`packages.${index}.packingMethod`]}
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="block text-sm font-medium text-gray-700">

@@ -175,6 +175,12 @@ export const useLorryReceiptFormState = (existingLr?: LorryReceipt) => {
 
     // Update form data with proper validation
     const updateFormData = useCallback((fieldName: string, value: any, type?: string) => {
+        // Validate fieldName exists
+        if (!fieldName) {
+            console.warn('updateFormData called with undefined fieldName');
+            return;
+        }
+
         // Clear error for this field
         if (errors[fieldName]) {
             setErrors(prev => ({ ...prev, [fieldName]: '' }));
