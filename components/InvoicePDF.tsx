@@ -30,14 +30,19 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
 
     const totalPacks = (invoice.lorryReceipts || []).reduce((sum, lr) => sum + (lr.packages || []).reduce((pkgSum, p) => pkgSum + (p.count || 0), 0), 0);
     const totalWeight = (invoice.lorryReceipts || []).reduce((sum, lr) => sum + (lr.packages || []).reduce((pkgSum, p) => pkgSum + (p.chargedWeight || 0), 0), 0);
-    // Use auto-calculated freight total if available, otherwise calculate from LRs
+    // Use auto-calculated freight total if available, otherwise calculate from LRs (includes all charges)
     const totalFreight = invoice.invoiceFreightTotal || (invoice.lorryReceipts || []).reduce((sum, lr) => {
-        const freight = lr.charges?.freight || 0;
-        return freight > 0 ? sum + freight : sum;
+        // Calculate total charges for this LR (freight + all other charges)
+        const totalCharges = (lr.charges?.freight || 0) + 
+                            (lr.charges?.aoc || 0) + 
+                            (lr.charges?.hamali || 0) + 
+                            (lr.charges?.bCh || 0) + 
+                            (lr.charges?.trCh || 0) + 
+                            (lr.charges?.detentionCh || 0);
+        return sum + totalCharges;
     }, 0);
-    const totalOtherCharges = (invoice.lorryReceipts || []).reduce((sum, lr) => {
-        return sum + (lr.charges?.aoc || 0) + (lr.charges?.hamali || 0) + (lr.charges?.bCh || 0) + (lr.charges?.trCh || 0) + (lr.charges?.detentionCh || 0);
-    }, 0);
+    // Note: totalOtherCharges is now included in totalFreight, so we can remove this calculation
+    const totalOtherCharges = 0; // Deprecated - now included in totalFreight
     const subTotal = invoice.totalAmount || 0;
     
     // Get the origin location text based on LR data
@@ -606,7 +611,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                 {/* Footer */}
                 <div className="flex justify-between items-end pt-4 border-t">
                     <div className="relative">
-                        <p className="font-bold">FOR {companyInfo.name}</p>
+                        <p className="font-bold">FOR {companyInfo?.name || 'Company Name'}</p>
                         <div className="w-32 h-20 border-2 border-blue-500 rounded-full flex items-center justify-center text-blue-500 -rotate-12 mt-4">
                             <div className="text-center leading-tight">
                                 <p className="font-bold">ALL INDIA</p>
@@ -618,7 +623,7 @@ export const InvoiceView: React.FC<InvoiceViewProps> = ({ invoice, companyInfo, 
                     </div>
                     <div className="text-left text-sm">
                         <p className="font-bold underline">Bank Details</p>
-                        {companyInfo.currentBankAccount ? (
+                        {companyInfo?.currentBankAccount ? (
                             <>
                                 <p>{companyInfo.currentBankAccount.bankName}</p>
                                

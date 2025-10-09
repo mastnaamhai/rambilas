@@ -142,7 +142,12 @@ export const LrPreviewCard: React.FC<LrPreviewCardProps> = ({
           {/* E-Way Bill */}
           {lr.eWayBillNo && (
             <div className="text-xs text-gray-500 mt-2">
-              EWB: {lr.eWayBillNo}
+              <div>EWB: {lr.eWayBillNo}</div>
+              {lr.eWayBillValidUpto && (
+                <div className="text-red-600 font-medium">
+                  Valid: {formatDate(lr.eWayBillValidUpto)}
+                </div>
+              )}
             </div>
           )}
         </div>

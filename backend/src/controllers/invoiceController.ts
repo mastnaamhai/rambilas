@@ -7,16 +7,23 @@ import { LorryReceiptStatus, InvoiceStatus } from '../types';
 import { paginationQuerySchema, createInvoiceSchema, updateInvoiceSchema } from '../utils/validation';
 import mongoose from 'mongoose';
 
-// Helper function to calculate freight total from LRs
+// Helper function to calculate freight total from LRs (includes all charges)
 const calculateFreightTotal = async (lrIds: string[]): Promise<{ freightTotal: number; hasZeroFreight: boolean }> => {
   const lrs = await LorryReceipt.find({ _id: { $in: lrIds } });
   let freightTotal = 0;
   let hasZeroFreight = false;
   
   lrs.forEach(lr => {
-    const freight = lr.charges?.freight || 0;
-    if (freight > 0) {
-      freightTotal += freight;
+    // Calculate total charges for this LR (freight + all other charges)
+    const totalCharges = (lr.charges?.freight || 0) + 
+                        (lr.charges?.aoc || 0) + 
+                        (lr.charges?.hamali || 0) + 
+                        (lr.charges?.bCh || 0) + 
+                        (lr.charges?.trCh || 0) + 
+                        (lr.charges?.detentionCh || 0);
+    
+    if (totalCharges > 0) {
+      freightTotal += totalCharges;
     } else {
       hasZeroFreight = true;
     }
@@ -115,6 +122,15 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
     console.log('Calculated freight total:', freightTotal);
     console.log('Has zero freight LRs:', hasZeroFreight);
     
+    // Check if manual freight override is provided
+    const manualFreightAmount = invoiceData.freightCharges?.amount || 0;
+    const useManualFreight = manualFreightAmount > 0;
+    const finalFreightTotal = useManualFreight ? manualFreightAmount : freightTotal;
+    
+    console.log('Manual freight amount:', manualFreightAmount);
+    console.log('Using manual freight:', useManualFreight);
+    console.log('Final freight total:', finalFreightTotal);
+    
     // Use custom Invoice number if provided, otherwise generate one
     let invoiceNumber = invoiceData.invoiceNumber;
     if (!invoiceNumber) {
@@ -156,8 +172,8 @@ export const createInvoice = asyncHandler(async (req: Request, res: Response) =>
       isManualGst: invoiceData.isManualGst || false,
       remarks: invoiceData.remarks || '',
       // Auto-calculated freight fields
-      isAutoFreightCalculated: true,
-      invoiceFreightTotal: freightTotal,
+      isAutoFreightCalculated: !useManualFreight,
+      invoiceFreightTotal: finalFreightTotal,
     };
     
     console.log('Invoice to create:', JSON.stringify(invoiceToCreate, null, 2));

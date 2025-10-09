@@ -71,8 +71,8 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                         <Logo
                             size="xl"
                             showText={false}
-                            companyLogo={companyInfo.logo}
-                            companyName={companyInfo.name}
+                            companyLogo={companyInfo?.logo}
+                            companyName={companyInfo?.name}
                         />
                     </div>
                     
@@ -82,15 +82,15 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                             <p className="text-sm font-semibold italic">!! Jai Bajarang Bali !!</p>
                             <p className="text-sm font-semibold italic">!! Jai Dada Nath !!</p>
                         </div>
-                        <h1 className="text-4xl font-bold tracking-wider text-red-600 mb-2">{companyInfo.name}</h1>
-                        <p className="text-sm mb-1">{companyInfo.address}</p>
-                        <p className="text-sm">E-mail: {companyInfo.email} / Web.: {companyInfo.website}</p>
+                        <h1 className="text-4xl font-bold tracking-wider text-red-600 mb-2">{companyInfo?.name || 'Company Name'}</h1>
+                        <p className="text-sm mb-1">{companyInfo?.address || 'Company Address'}</p>
+                        <p className="text-sm">E-mail: {companyInfo?.email || 'email@company.com'} / Web.: {companyInfo?.website || 'www.company.com'}</p>
                     </div>
                     
                     {/* Right - Contact Numbers */}
                     <div className="text-right text-sm whitespace-nowrap">
-                        <p className="font-semibold">Mob.: {companyInfo.phone1}</p>
-                        <p className="font-semibold">{companyInfo.phone2}</p>
+                        <p className="font-semibold">Mob.: {companyInfo?.phone1 || 'Phone 1'}</p>
+                        <p className="font-semibold">{companyInfo?.phone2 || 'Phone 2'}</p>
                     </div>
                 </div>
 
@@ -118,8 +118,8 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                     {/* Right Box - PAN/GSTIN */}
                     <div className="border border-black p-1">
                         <div className="text-center">
-                            <p className="text-xs mb-1">PAN No.: {companyInfo.pan}</p>
-                            <p className="text-xs">GSTIN: {companyInfo.gstin}</p>
+                            <p className="text-xs mb-1">PAN No.: {companyInfo?.pan || 'PAN Number'}</p>
+                            <p className="text-xs">GSTIN: {companyInfo?.gstin || 'GSTIN Number'}</p>
                         </div>
                     </div>
                 </div>
@@ -373,11 +373,13 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                         <div className="grid grid-cols-2 gap-1 mb-1">
                             <div className="border border-black p-1">
                                 <h3 className="font-bold text-xs underline mb-0.5">E-WAY BILL NO.</h3>
-                                <p className="text-xs">{lorryReceipt.eWayBillNo || 'N/A'}</p>
+                                <p className="text-xs font-medium">{lorryReceipt.eWayBillNo || 'N/A'}</p>
                                 {lorryReceipt.eWayBillValidUpto && (
-                                    <div className="mt-1">
-                                        <h4 className="font-bold text-xs">Valid Upto:</h4>
-                                        <p className="text-xs">{formatDate(lorryReceipt.eWayBillValidUpto)}</p>
+                                    <div className="mt-1 pt-1 border-t border-gray-300">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-xs">Valid Upto:</span>
+                                            <span className="text-xs font-semibold text-red-600">{formatDate(lorryReceipt.eWayBillValidUpto)}</span>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -403,10 +405,23 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
 };
 
 export const LorryReceiptPDF: React.FC<LorryReceiptPDFProps> = ({ lorryReceipt, companyInfo, onBack }) => {
+    // Provide fallback company info if null
+    const safeCompanyInfo = companyInfo || {
+        name: 'Company Name',
+        address: 'Company Address',
+        email: 'email@company.com',
+        website: 'www.company.com',
+        phone1: 'Phone 1',
+        phone2: 'Phone 2',
+        pan: 'PAN Number',
+        gstin: 'GSTIN Number',
+        logo: null
+    };
+
     return (
         <LorryReceiptCopyPreview
             lorryReceipt={lorryReceipt}
-            companyInfo={companyInfo}
+            companyInfo={safeCompanyInfo}
             onBack={onBack}
         />
     );

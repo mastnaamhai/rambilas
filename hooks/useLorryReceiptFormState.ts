@@ -43,6 +43,7 @@ const getInitialState = (): LorryReceiptFormData => {
         charges: { freight: 0, aoc: 0, hamali: 0, bCh: 0, trCh: 0, detentionCh: 0 },
         totalAmount: 0,
         eWayBillNo: '',
+        eWayBillValidUpto: '',
         valueGoods: 0,
         gstPayableBy: GstPayableBy.CONSIGNOR,
         riskBearer: RiskBearer.OWNER,

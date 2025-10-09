@@ -90,6 +90,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     const [lrFilters, setLrFilters] = useState<UnbilledLrFilters>({});
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [overrideFreight, setOverrideFreight] = useState(false);
 
     // Validation rules for invoice form
     const validationRules = {
@@ -212,6 +213,27 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     useEffect(() => {
         calculateTotals();
     }, [calculateTotals]);
+
+    // Calculate freight total from selected LRs (includes all charges)
+    const calculatedFreightTotal = useMemo(() => {
+        if (!invoice.lorryReceipts || invoice.lorryReceipts.length === 0) {
+            return 0;
+        }
+        
+        return invoice.lorryReceipts.reduce((sum, lr) => {
+            // Calculate total charges for this LR (freight + all other charges)
+            const totalCharges = (lr.charges?.freight || 0) + 
+                                (lr.charges?.aoc || 0) + 
+                                (lr.charges?.hamali || 0) + 
+                                (lr.charges?.bCh || 0) + 
+                                (lr.charges?.trCh || 0) + 
+                                (lr.charges?.detentionCh || 0);
+            return sum + totalCharges;
+        }, 0);
+    }, [invoice.lorryReceipts]);
+
+    // Get selected LRs count
+    const selectedLrsCount = invoice.lorryReceipts?.length || 0;
 
     // Load unbilled LRs when customer or filters change
     useEffect(() => {
@@ -390,7 +412,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             const selectedCustomer = customers.find(c => c._id === invoice.customerId);
             if (selectedCustomer) {
                 // Get company state from company info
-                const companyState = companyInfo.state;
+                const companyState = companyInfo?.state;
                 const customerState = selectedCustomer.state;
                 
                 const shouldUseIGST = customerState !== companyState;
@@ -888,7 +910,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                                     onValueChange={(value) => handleValueChange('cgstAmount', value)}
                                                                     type="number"
                                                                     min="0"
-                                                                    step="100"
+                                                                    step="0.01"
                                                                     label="CGST Amount (₹)"
                                                                 />
                                                         </div>
@@ -900,7 +922,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                                 onValueChange={(value) => handleValueChange('sgstAmount', value)}
                                                                 type="number"
                                                                 min="0"
-                                                                step="100"
+                                                                step="0.01"
                                                                 label="SGST Amount (₹)"
                                                             />
                                                         </div>
@@ -913,7 +935,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                             onValueChange={(value) => handleValueChange('igstAmount', value)}
                                                             type="number"
                                                             min="0"
-                                                            step="100"
+                                                            step="0.01"
                                                             label="IGST Amount (₹)"
                                                         />
                                                     </div>
@@ -951,40 +973,76 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                     </div>
                                 )}
 
-                                {/* Freight Charges */}
+                                {/* Enhanced Freight Charges */}
                                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                                     <h2 className="text-lg font-semibold text-gray-800 mb-4">Freight Charges</h2>
                                     
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <ValidatedInput
-                                                    fieldName="freightCharges.amount"
-                                                    validationRules={validationRules}
-                                                    value={invoice.freightCharges?.amount || 0}
-                                                    onValueChange={(value) => handleValueChange('freightCharges.amount', value)}
-                                                    type="number"
-                                                    min="0"
-                                                    step="100"
-                                                    label="Freight Amount (₹)"
-                                                />
+                                    {/* Auto-calculated Freight Display */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <h3 className="text-sm font-medium text-blue-800">Auto-calculated from LRs</h3>
+                                                <p className="text-xs text-blue-600">Based on selected Lorry Receipts (includes all charges)</p>
                                             </div>
-                                            <div className="space-y-2">
-                                                <ValidatedSelect
-                                                    fieldName="freightCharges.paymentType"
-                                                    validationRules={validationRules}
-                                                    value={invoice.freightCharges?.paymentType || 'Not Applicable'}
-                                                    onValueChange={(value) => handleValueChange('freightCharges.paymentType', value)}
-                                                    options={[
-                                                        { value: 'Paid', label: 'Paid' },
-                                                        { value: 'To Pay', label: 'To Pay' },
-                                                        { value: 'Not Applicable', label: 'Not Applicable' }
-                                                    ]}
-                                                    label="Payment Type"
-                                                />
+                                            <div className="text-right">
+                                                <div className="text-lg font-semibold text-blue-800">
+                                                    ₹{calculatedFreightTotal.toLocaleString('en-IN')}
+                                                </div>
+                                                <div className="text-xs text-blue-600">
+                                                    {selectedLrsCount} LR{selectedLrsCount !== 1 ? 's' : ''} selected
+                                                </div>
                                             </div>
                                         </div>
-                                        
+                                    </div>
+
+                                    {/* Manual Override Option */}
+                                    <div className="space-y-4">
+                                        <div className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id="overrideFreight"
+                                                checked={overrideFreight}
+                                                onChange={(e) => setOverrideFreight(e.target.checked)}
+                                                className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                            />
+                                            <label htmlFor="overrideFreight" className="text-sm font-medium text-gray-700">
+                                                Override with manual freight amount
+                                            </label>
+                                        </div>
+
+                                        {overrideFreight && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <ValidatedInput
+                                                        fieldName="freightCharges.amount"
+                                                        validationRules={validationRules}
+                                                        value={invoice.freightCharges?.amount || 0}
+                                                        onValueChange={(value) => handleValueChange('freightCharges.amount', value)}
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        label="Manual Freight Amount (₹)"
+                                                        placeholder="Enter manual freight amount"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <ValidatedSelect
+                                                        fieldName="freightCharges.paymentType"
+                                                        validationRules={validationRules}
+                                                        value={invoice.freightCharges?.paymentType || 'Not Applicable'}
+                                                        onValueChange={(value) => handleValueChange('freightCharges.paymentType', value)}
+                                                        options={[
+                                                            { value: 'Paid', label: 'Paid' },
+                                                            { value: 'To Pay', label: 'To Pay' },
+                                                            { value: 'Not Applicable', label: 'Not Applicable' }
+                                                        ]}
+                                                        label="Payment Type"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Additional Freight Details */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Input
@@ -1006,6 +1064,24 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                     label="LR Number"
                                                 />
                                             </div>
+                                        </div>
+
+                                        {/* Total Freight Summary */}
+                                        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-sm font-medium text-green-800">Total Freight for Invoice:</span>
+                                                <span className="text-lg font-bold text-green-800">
+                                                    ₹{overrideFreight ? 
+                                                        (invoice.freightCharges?.amount || 0).toLocaleString('en-IN') : 
+                                                        calculatedFreightTotal.toLocaleString('en-IN')
+                                                    }
+                                                </span>
+                                            </div>
+                                            {overrideFreight && (
+                                                <div className="text-xs text-green-600 mt-1">
+                                                    Using manual override instead of auto-calculated amount
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

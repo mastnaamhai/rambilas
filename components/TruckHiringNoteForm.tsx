@@ -32,7 +32,7 @@ export const TruckHiringNoteForm = ({ existingNote, companyInfo, onSave, onCance
         loadingDateTime: '',
         expectedDeliveryDate: '',
         goodsType: '',
-        agencyName: companyInfo.name, // Auto-populate with company name
+        agencyName: companyInfo?.name || '', // Auto-populate with company name
         truckOwnerName: '',
         truckOwnerContact: '',
         freightRate: 0,

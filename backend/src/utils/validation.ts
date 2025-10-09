@@ -27,6 +27,13 @@ export const createInvoiceSchema = z.object({
   // Auto-calculated freight fields
   isAutoFreightCalculated: z.boolean().optional(),
   invoiceFreightTotal: z.number().nonnegative().optional(),
+  // Separate freight charges fields
+  freightCharges: z.object({
+    amount: z.number().nonnegative().optional(),
+    paymentType: z.enum(['Paid', 'To Pay', 'Not Applicable']).optional(),
+    transporterName: z.string().optional(),
+    lrNumber: z.string().optional(),
+  }).optional(),
 });
 
 export const updateInvoiceSchema = createInvoiceSchema.partial();
@@ -58,6 +65,7 @@ export const createLrSchema = z.object({
   }),
   totalAmount: z.number().nonnegative(),
   eWayBillNo: z.string().optional(),
+  eWayBillValidUpto: z.string().optional(),
   valueGoods: z.number().optional(),
   gstPayableBy: z.nativeEnum(GstPayableBy),
   riskBearer: z.nativeEnum(RiskBearer),

@@ -1206,7 +1206,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                         type="number"
                                         required={false}
                                         min="0"
-                                        step="1000"
+                                        step="0.01"
                                         label="Freight Charges (₹) - Optional"
                                     />
                                 </div>

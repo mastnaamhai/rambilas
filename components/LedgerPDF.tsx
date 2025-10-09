@@ -28,12 +28,12 @@ export const LedgerView: React.FC<Omit<LedgerPDFProps, 'title' | 'onBack'>> = ({
                             size="xl" 
                             showText={true} 
                             className="justify-center"
-                            companyLogo={companyInfo.logo}
-                            companyName={companyInfo.name}
+                            companyLogo={companyInfo?.logo}
+                            companyName={companyInfo?.name}
                         />
                     </div>
-                    <h1 className="text-3xl font-bold tracking-wider text-gray-800">{companyInfo.name}</h1>
-                    <p className="text-gray-600">{companyInfo.address}</p>
+                    <h1 className="text-3xl font-bold tracking-wider text-gray-800">{companyInfo?.name || 'Company Name'}</h1>
+                    <p className="text-gray-600">{companyInfo?.address || 'Company Address'}</p>
                     <h2 className="text-2xl font-semibold mt-4 underline">{summary ? 'Ledger Report' : 'Company Ledger'}</h2>
                 </div>
 

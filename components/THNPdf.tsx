@@ -223,8 +223,8 @@ export const THNPdf: React.FC<THNPdfProps> = ({ thn, companyInfo, onBack }) => {
                             size="lg" 
                             showText={true} 
                             className="justify-center company-logo"
-                            companyLogo={companyInfo.logo}
-                            companyName={companyInfo.name}
+                            companyLogo={companyInfo?.logo}
+                            companyName={companyInfo?.name}
                         />
                     </div>
                     <h1 className="text-3xl font-black mb-3 tracking-wide">TRUCK HIRING NOTE</h1>
