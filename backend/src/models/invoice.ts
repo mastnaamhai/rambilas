@@ -25,6 +25,13 @@ export interface IInvoice extends Document {
   // Auto-calculated freight fields
   isAutoFreightCalculated: boolean;
   invoiceFreightTotal: number;
+  // Separate freight charges fields
+  freightCharges?: {
+    amount: number;
+    paymentType: 'Paid' | 'To Pay' | 'Not Applicable';
+    transporterName?: string;
+    lrNumber?: string;
+  };
   // Virtuals
   paidAmount: number;
   balanceDue: number;
@@ -53,6 +60,17 @@ const InvoiceSchema = new Schema({
   // Auto-calculated freight fields
   isAutoFreightCalculated: { type: Boolean, default: true },
   invoiceFreightTotal: { type: Number, default: 0 },
+  // Separate freight charges fields
+  freightCharges: {
+    amount: { type: Number, default: 0 },
+    paymentType: { 
+      type: String, 
+      enum: ['Paid', 'To Pay', 'Not Applicable'], 
+      default: 'Not Applicable' 
+    },
+    transporterName: { type: String },
+    lrNumber: { type: String }
+  },
 }, {
   // Ensure virtuals are included when converting to JSON
   toJSON: { virtuals: true },

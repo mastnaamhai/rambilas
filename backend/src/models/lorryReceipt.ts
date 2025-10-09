@@ -21,7 +21,7 @@ export interface ILorryReceipt extends Document {
     chargedWeight: number;
   }[];
   charges: {
-    freight: number;
+    freight?: number;
     aoc: number;
     hamali: number;
     bCh: number;
@@ -30,6 +30,7 @@ export interface ILorryReceipt extends Document {
   };
   totalAmount: number;
   eWayBillNo: string;
+  eWayBillValidUpto?: string;
   valueGoods: number;
   gstPayableBy: GstPayableBy;
   riskBearer: RiskBearer;
@@ -71,7 +72,7 @@ const LorryReceiptSchema = new Schema({
     },
   ],
   charges: {
-    freight: { type: Number, default: 0 },
+    freight: { type: Number, default: 0, required: false },
     aoc: { type: Number, default: 0 },
     hamali: { type: Number, default: 0 },
     bCh: { type: Number, default: 0 },
@@ -80,6 +81,7 @@ const LorryReceiptSchema = new Schema({
   },
   totalAmount: { type: Number, required: true },
   eWayBillNo: { type: String },
+  eWayBillValidUpto: { type: String },
   valueGoods: { type: Number },
   gstPayableBy: { type: String, enum: Object.values(GstPayableBy), required: true },
   riskBearer: { type: String, enum: Object.values(RiskBearer), required: true },

@@ -66,8 +66,8 @@ export const ValidatedAutocompleteSelect: React.FC<ValidatedAutocompleteSelectPr
   }, [customers, value]);
 
   // Filter customers based on search term with close matches
-  const { exactMatches, closeMatches } = useMemo(() => {
-    if (!searchTerm || searchTerm.length < 2) return { exactMatches: [], closeMatches: [] };
+  const { exactMatches, closeMatches, filteredCustomers } = useMemo(() => {
+    if (!searchTerm || searchTerm.length < 2) return { exactMatches: [], closeMatches: [], filteredCustomers: [] };
     
     const lowercaseSearch = searchTerm.toLowerCase();
     const uppercaseSearch = searchTerm.toUpperCase();
@@ -89,9 +89,12 @@ export const ValidatedAutocompleteSelect: React.FC<ValidatedAutocompleteSelectPr
       (!customer.gstin || !customer.gstin.includes(uppercaseSearch))
     );
 
+    const combined = [...exact.slice(0, 5), ...close.slice(0, 3)];
+
     return {
       exactMatches: exact.slice(0, 5),
-      closeMatches: close.slice(0, 3)
+      closeMatches: close.slice(0, 3),
+      filteredCustomers: combined
     };
   }, [customers, searchTerm]);
 
@@ -359,7 +362,10 @@ export const ValidatedAutocompleteSelect: React.FC<ValidatedAutocompleteSelectPr
                   className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${
                     index === highlightedIndex ? 'bg-blue-50' : ''
                   }`}
-                  onClick={() => handleCustomerSelect(customer)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleCustomerSelect(customer);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(index)}
                 >
                   <div className="font-medium text-gray-900">{customer.name}</div>
@@ -388,7 +394,10 @@ export const ValidatedAutocompleteSelect: React.FC<ValidatedAutocompleteSelectPr
                   className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 ${
                     (exactMatches.length + index) === highlightedIndex ? 'bg-blue-50' : ''
                   }`}
-                  onClick={() => handleCustomerSelect(customer)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleCustomerSelect(customer);
+                  }}
                   onMouseEnter={() => setHighlightedIndex(exactMatches.length + index)}
                 >
                   <div className="font-medium text-gray-900">{customer.name}</div>

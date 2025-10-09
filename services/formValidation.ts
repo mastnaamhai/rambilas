@@ -125,7 +125,6 @@ export const fieldRules = {
         message: 'Name must be between 2 and 100 characters'
     },
     address: { 
-        required: true, 
         minLength: 10, 
         maxLength: 500,
         message: 'Address must be between 10 and 500 characters'
@@ -136,6 +135,7 @@ export const fieldRules = {
         message: 'City must be between 2 and 50 characters'
     },
     pin: { 
+        required: false,
         pattern: /^[1-9][0-9]{5}$/, 
         message: 'PIN code must be 6 digits starting with 1-9'
     },
@@ -162,9 +162,14 @@ export const fieldRules = {
         message: 'Amount must be greater than 0'
     },
     freightRate: { 
-        required: true, 
+        required: false, 
         min: 0.00, 
         message: 'Freight rate must be greater than or equal to 0'
+    },
+    freightCharges: { 
+        required: false, 
+        min: 0.00, 
+        message: 'Freight charges must be greater than or equal to 0'
     },
     advanceAmount: { 
         min: 0, 

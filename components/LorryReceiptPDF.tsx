@@ -374,6 +374,12 @@ export const LorryReceiptView: React.FC<LorryReceiptViewProps> = ({ lorryReceipt
                             <div className="border border-black p-1">
                                 <h3 className="font-bold text-xs underline mb-0.5">E-WAY BILL NO.</h3>
                                 <p className="text-xs">{lorryReceipt.eWayBillNo || 'N/A'}</p>
+                                {lorryReceipt.eWayBillValidUpto && (
+                                    <div className="mt-1">
+                                        <h4 className="font-bold text-xs">Valid Upto:</h4>
+                                        <p className="text-xs">{formatDate(lorryReceipt.eWayBillValidUpto)}</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="border border-black p-1">
                                 <h3 className="font-bold text-xs underline mb-0.5">VALUE OF GOODS Rs.</h3>

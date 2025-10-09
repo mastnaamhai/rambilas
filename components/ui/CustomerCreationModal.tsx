@@ -7,11 +7,14 @@ import { ValidatedInput } from './ValidatedInput';
 import { ValidatedSelect } from './ValidatedSelect';
 import { ValidatedCitySelect } from './ValidatedCitySelect';
 import { ValidatedTextarea } from './ValidatedTextarea';
+import { PincodeInput } from './PincodeInput';
+import { StateCityDropdown } from './StateCityDropdown';
 import { fetchGstDetails } from '../../services/simpleGstService';
 import { indianStates } from '../../constants';
 import { useFormValidation } from '../../hooks/useFormValidation';
 import { fieldRules } from '../../services/formValidation';
 import type { Customer } from '../../types';
+import type { PincodeDetails } from '../../services/pincodeService';
 
 interface CustomerCreationModalProps {
   isOpen: boolean;
@@ -45,12 +48,12 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
-  // Validation rules for customer form
+  // Validation rules for customer form - only name and pincode are required
   const validationRules = {
     name: fieldRules.name,
     tradeName: { maxLength: 100, message: 'Trade name cannot exceed 100 characters' },
     address: fieldRules.address,
-    state: { required: true, message: 'State is required' },
+    state: fieldRules.city, // Make state optional, will be auto-filled from pincode
     city: fieldRules.city,
     pin: fieldRules.pin,
     gstin: { 
@@ -88,6 +91,24 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
   const handleValueChange = (fieldName: string, value: any) => {
     clearFieldError(fieldName);
     setFormData(prev => ({ ...prev, [fieldName]: value }));
+  };
+
+  const handlePincodeFound = (details: PincodeDetails) => {
+    setFormData(prev => ({
+      ...prev,
+      city: details.city,
+      state: details.state,
+      pin: details.pincode
+    }));
+  };
+
+  const handlePincodeNotFound = () => {
+    // Enable manual entry of city and state when pincode is not found
+    setFormData(prev => ({
+      ...prev,
+      city: prev.city || '',
+      state: prev.state || ''
+    }));
   };
 
   const handleVerifyGstin = async () => {
@@ -194,93 +215,117 @@ export const CustomerCreationModal: React.FC<CustomerCreationModalProps> = ({
             </Button>
           </div>
 
-          <div className="space-y-4">
-            {/* GSTIN Verification */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                GSTIN (Optional)
-              </label>
-              <div className="flex items-end space-x-2">
-                <Input
-                  name="gstin"
-                  value={formData.gstin || ''}
-                  onChange={handleChange}
-                  placeholder="Enter 15-digit GSTIN"
-                  maxLength={15}
-                  className="flex-grow"
-                  error={errors.gstin}
+          <div className="space-y-6">
+            {/* Required Information */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-blue-800 mb-4">Required Information</h3>
+              <div className="space-y-4">
+                <ValidatedInput
+                  fieldName="name"
+                  validationRules={validationRules}
+                  value={formData.name || ''}
+                  onValueChange={(value) => handleValueChange('name', value)}
+                  required
+                  label="Customer Name"
+                  placeholder="Enter customer name"
                 />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleVerifyGstin}
-                  disabled={isVerifying || !formData.gstin || formData.gstin.length !== 15}
-                  size="sm"
-                >
-                  {isVerifying ? 'Verifying...' : 'Fetch Details'}
-                </Button>
-              </div>
-              {verifyStatus && (
-                <div className={`text-sm p-2 rounded ${
-                  verifyStatus.type === 'success' 
-                    ? 'bg-green-100 text-green-800 border border-green-200' 
-                    : 'bg-red-100 text-red-800 border border-red-200'
-                }`}>
-                  {verifyStatus.message}
+                
+                <PincodeInput
+                  label="PIN Code"
+                  name="pin"
+                  value={formData.pin || ''}
+                  onChange={handleChange}
+                  onPincodeFound={handlePincodeFound}
+                  onPincodeNotFound={handlePincodeNotFound}
+                  error={errors.pin}
+                  helpText="Enter pincode to auto-fill city and state"
+                />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <StateCityDropdown
+                    label="City"
+                    name="city"
+                    value={formData.city || ''}
+                    onChange={handleChange}
+                    onCityChange={(city) => handleValueChange('city', city)}
+                    type="city"
+                    selectedState={formData.state}
+                    placeholder={formData.pin ? "Auto-filled from pincode" : "Enter city manually"}
+                    error={errors.city}
+                  />
+                  <StateCityDropdown
+                    label="State"
+                    name="state"
+                    value={formData.state || ''}
+                    onChange={handleChange}
+                    onStateChange={(state) => handleValueChange('state', state)}
+                    type="state"
+                    placeholder={formData.pin ? "Auto-filled from pincode" : "Enter state manually"}
+                    error={errors.state}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ValidatedInput
-                fieldName="name"
-                validationRules={validationRules}
-                value={formData.name || ''}
-                onValueChange={(value) => handleValueChange('name', value)}
-                required
-              />
-              <ValidatedInput
-                fieldName="tradeName"
-                validationRules={validationRules}
-                value={formData.tradeName || ''}
-                onValueChange={(value) => handleValueChange('tradeName', value)}
-              />
-            </div>
+            {/* Optional Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800">Optional Information</h3>
+              
+              {/* GSTIN Verification */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  GSTIN (Optional)
+                </label>
+                <div className="flex items-end space-x-2">
+                  <Input
+                    name="gstin"
+                    value={formData.gstin || ''}
+                    onChange={handleChange}
+                    placeholder="Enter 15-digit GSTIN"
+                    maxLength={15}
+                    className="flex-grow"
+                    error={errors.gstin}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleVerifyGstin}
+                    disabled={isVerifying || !formData.gstin || formData.gstin.length !== 15}
+                    size="sm"
+                  >
+                    {isVerifying ? 'Verifying...' : 'Fetch Details'}
+                  </Button>
+                </div>
+                {verifyStatus && (
+                  <div className={`text-sm p-2 rounded ${
+                    verifyStatus.type === 'success' 
+                      ? 'bg-green-100 text-green-800 border border-green-200' 
+                      : 'bg-red-100 text-red-800 border border-red-200'
+                  }`}>
+                    {verifyStatus.message}
+                  </div>
+                )}
+              </div>
 
-            <ValidatedTextarea
-              fieldName="address"
-              validationRules={validationRules}
-              value={formData.address || ''}
-              onValueChange={(value) => handleValueChange('address', value)}
-              required
-              rows={3}
-            />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ValidatedInput
+                  fieldName="tradeName"
+                  validationRules={validationRules}
+                  value={formData.tradeName || ''}
+                  onValueChange={(value) => handleValueChange('tradeName', value)}
+                  label="Trade Name"
+                  placeholder="Enter trade name (optional)"
+                />
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <ValidatedSelect
-                fieldName="state"
+              <ValidatedTextarea
+                fieldName="address"
                 validationRules={validationRules}
-                value={formData.state || ''}
-                onValueChange={(value) => handleValueChange('state', value)}
-                required
-                options={indianStates.map(s => ({ value: s, label: s }))}
-              />
-              <ValidatedCitySelect
-                fieldName="city"
-                validationRules={validationRules}
-                value={formData.city || ''}
-                onValueChange={(value) => handleValueChange('city', value)}
-                state={formData.state}
-                label="City"
-                placeholder="Type to search cities..."
-              />
-              <ValidatedInput
-                fieldName="pin"
-                validationRules={validationRules}
-                value={formData.pin || ''}
-                onValueChange={(value) => handleValueChange('pin', value)}
-                maxLength={6}
+                value={formData.address || ''}
+                onValueChange={(value) => handleValueChange('address', value)}
+                label="Address"
+                placeholder="Enter address (optional)"
+                rows={3}
               />
             </div>
 

@@ -30,7 +30,6 @@ export const LorryReceiptFormWrapper: React.FC = () => {
         await context.fetchCustomers();
         return context.customers;
       }}
-      lorryReceipts={context.lorryReceipts}
       existingLr={existingLr}
     />
   );

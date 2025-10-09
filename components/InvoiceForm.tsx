@@ -70,6 +70,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             isRcm: false,
             isManualGst: false,
             status: InvoiceStatus.UNPAID,
+            freightCharges: {
+                amount: 0,
+                paymentType: 'Not Applicable',
+                transporterName: '',
+                lrNumber: ''
+            },
         }
     );
 
@@ -138,7 +144,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 if (value.length < 3) return 'Invoice number must be at least 3 characters';
                 return null;
             }
-        }
+        },
+        'freightCharges.amount': fieldRules.freightCharges,
+        'freightCharges.paymentType': { required: false },
+        'freightCharges.transporterName': { maxLength: 100, message: 'Transporter name cannot exceed 100 characters' },
+        'freightCharges.lrNumber': { maxLength: 50, message: 'LR number cannot exceed 50 characters' }
     };
 
     // Form validation hook
@@ -245,18 +255,43 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         // Clear error for this field
         clearFieldError(name);
 
-        setInvoice(prev => ({
-            ...prev,
-            [name]: type === 'number' ? parseFloat(value) || 0 : value,
-        }));
+        // Handle nested freight charges fields
+        if (name.startsWith('freightCharges.')) {
+            const fieldName = name.split('.')[1];
+            setInvoice(prev => ({
+                ...prev,
+                freightCharges: {
+                    ...prev.freightCharges,
+                    [fieldName]: type === 'number' ? parseFloat(value) || 0 : value,
+                }
+            }));
+        } else {
+            setInvoice(prev => ({
+                ...prev,
+                [name]: type === 'number' ? parseFloat(value) || 0 : value,
+            }));
+        }
     };
 
     const handleValueChange = (fieldName: string, value: any) => {
         clearFieldError(fieldName);
-        setInvoice(prev => ({
-            ...prev,
-            [fieldName]: value,
-        }));
+        
+        // Handle nested freight charges fields
+        if (fieldName.startsWith('freightCharges.')) {
+            const nestedFieldName = fieldName.split('.')[1];
+            setInvoice(prev => ({
+                ...prev,
+                freightCharges: {
+                    ...prev.freightCharges,
+                    [nestedFieldName]: value,
+                }
+            }));
+        } else {
+            setInvoice(prev => ({
+                ...prev,
+                [fieldName]: value,
+            }));
+        }
     };
 
     const handleManualGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -915,6 +950,65 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                         </div>
                                     </div>
                                 )}
+
+                                {/* Freight Charges */}
+                                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                                    <h2 className="text-lg font-semibold text-gray-800 mb-4">Freight Charges</h2>
+                                    
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <ValidatedInput
+                                                    fieldName="freightCharges.amount"
+                                                    validationRules={validationRules}
+                                                    value={invoice.freightCharges?.amount || 0}
+                                                    onValueChange={(value) => handleValueChange('freightCharges.amount', value)}
+                                                    type="number"
+                                                    min="0"
+                                                    step="100"
+                                                    label="Freight Amount (₹)"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <ValidatedSelect
+                                                    fieldName="freightCharges.paymentType"
+                                                    validationRules={validationRules}
+                                                    value={invoice.freightCharges?.paymentType || 'Not Applicable'}
+                                                    onValueChange={(value) => handleValueChange('freightCharges.paymentType', value)}
+                                                    options={[
+                                                        { value: 'Paid', label: 'Paid' },
+                                                        { value: 'To Pay', label: 'To Pay' },
+                                                        { value: 'Not Applicable', label: 'Not Applicable' }
+                                                    ]}
+                                                    label="Payment Type"
+                                                />
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Input
+                                                    name="freightCharges.transporterName"
+                                                    type="text"
+                                                    value={invoice.freightCharges?.transporterName || ''}
+                                                    onChange={handleChange}
+                                                    placeholder="Transporter Name (Optional)"
+                                                    label="Transporter Name"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Input
+                                                    name="freightCharges.lrNumber"
+                                                    type="text"
+                                                    value={invoice.freightCharges?.lrNumber || ''}
+                                                    onChange={handleChange}
+                                                    placeholder="LR Number (Optional)"
+                                                    label="LR Number"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 {/* Additional Information */}
                                 <div className="bg-white border border-gray-200 rounded-lg p-6">

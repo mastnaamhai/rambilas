@@ -9,8 +9,8 @@ import Invoice from '../models/invoice';
 const createCustomerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   tradeName: z.string().optional(),
-  address: z.string().min(1, 'Address is required'),
-  state: z.string().min(1, 'State is required'),
+  address: z.string().optional(),
+  state: z.string().optional(),
   gstin: z.string().optional(),
   contactPerson: z.string().optional(),
   contactPhone: z.string().optional(),
@@ -94,7 +94,12 @@ export const getSyncCandidates = asyncHandler(async (req: Request, res: Response
 // @route   POST /api/customers
 // @access  Public
 export const createCustomer = asyncHandler(async (req: Request, res: Response) => {
-  const customerData = createCustomerSchema.parse(req.body);
+  // Preprocess the data to remove undefined values
+  const preprocessedData = Object.fromEntries(
+    Object.entries(req.body).filter(([_, value]) => value !== undefined)
+  );
+  
+  const customerData = createCustomerSchema.parse(preprocessedData);
   
   // Transform empty strings to undefined for optional fields
   const processedData = {

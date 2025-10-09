@@ -11,6 +11,8 @@ import { ValidatedCitySelect } from './ui/ValidatedCitySelect';
 import { ValidatedTextarea } from './ui/ValidatedTextarea';
 import { AutocompleteInput } from './ui/AutocompleteInput';
 import { EditableSectionBox } from './ui/EditableSectionBox';
+import { PincodeInput } from './ui/PincodeInput';
+import { StateCityDropdown } from './ui/StateCityDropdown';
 import { commonPackingMethods } from '../constants/formData';
 import { indianStates } from '../constants';
 import { fetchGstDetails } from '../services/simpleGstService';
@@ -19,6 +21,7 @@ import { useLorryReceiptFormState } from '../hooks/useLorryReceiptFormState';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { fieldRules } from '../services/formValidation';
 import { formatVehicleNumber } from '../services/utils';
+import type { PincodeDetails } from '../services/pincodeService';
 
 import type { LorryReceipt, Customer, TruckHiringNote } from '../types';
 
@@ -105,7 +108,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         'packages.0.chargedWeight': fieldRules.chargedWeight,
         'packages.0.count': { required: true, min: 1, message: 'Package count must be at least 1' },
         'packages.0.packingMethod': { required: true, message: 'Packing method is required' },
-        'charges.freight': fieldRules.currencyAmount,
+        'charges.freight': fieldRules.freightCharges,
         'charges.aoc': { min: 0, message: 'AOC cannot be negative' },
         'charges.hamali': { min: 0, message: 'Hamali cannot be negative' },
         'charges.bCh': { min: 0, message: 'B.Ch cannot be negative' },
@@ -124,13 +127,14 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         loadingAddress: { maxLength: 500, message: 'Loading address cannot exceed 500 characters' },
         deliveryAddress: { maxLength: 500, message: 'Delivery address cannot exceed 500 characters' },
         eWayBillNo: { maxLength: 50, message: 'E-Way Bill number cannot exceed 50 characters' },
+        eWayBillValidUpto: fieldRules.optionalDate,
         valueGoods: { min: 0, message: 'Value of goods cannot be negative' },
         invoiceNo: { maxLength: 50, message: 'Invoice number cannot exceed 50 characters' },
         sealNo: { maxLength: 50, message: 'Seal number cannot exceed 50 characters' },
-        // Use anyDate when manual LR is enabled to allow past dates for custom entries
-        reportingDate: allowManualLr ? fieldRules.anyDate : fieldRules.date,
-        // Use anyDate when manual LR is enabled to allow past dates for custom entries
-        deliveryDate: allowManualLr ? fieldRules.anyDate : fieldRules.futureDate,
+        // Make reporting date optional - allow any valid date or empty
+        reportingDate: fieldRules.optionalDate,
+        // Make delivery date optional - allow any valid date or empty
+        deliveryDate: fieldRules.optionalDate,
         remarks: fieldRules.remarks
     };
 
@@ -370,20 +374,60 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         setManualConsigneeErrors(prev => ({ ...prev, [name]: '' }));
     };
 
+    const handleConsignorPincodeFound = (details: PincodeDetails) => {
+        setManualConsignor(prev => ({
+            ...prev,
+            city: details.city,
+            state: details.state,
+            pin: details.pincode
+        }));
+    };
+
+    const handleConsignorPincodeNotFound = () => {
+        // Enable manual entry of city and state when pincode is not found
+        setManualConsignor(prev => ({
+            ...prev,
+            city: prev.city || '',
+            state: prev.state || ''
+        }));
+    };
+
+    const handleConsigneePincodeFound = (details: PincodeDetails) => {
+        setManualConsignee(prev => ({
+            ...prev,
+            city: details.city,
+            state: details.state,
+            pin: details.pincode
+        }));
+    };
+
+    const handleConsigneePincodeNotFound = () => {
+        // Enable manual entry of city and state when pincode is not found
+        setManualConsignee(prev => ({
+            ...prev,
+            city: prev.city || '',
+            state: prev.state || ''
+        }));
+    };
+
     const handleAddManualConsignor = async () => {
         const newErrors: { [key: string]: string } = {};
         if (!manualConsignor.name) newErrors.name = 'Name is required';
-        if (!manualConsignor.address) newErrors.address = 'Address is required';
-        if (!manualConsignor.state) newErrors.state = 'State is required';
+        // PIN code is optional - only validate format if provided
+        if (manualConsignor.pin && !/^[1-9][0-9]{5}$/.test(manualConsignor.pin)) {
+            newErrors.pin = 'PIN code must be 6 digits starting with 1-9';
+        }
         if (Object.keys(newErrors).length > 0) {
             setManualConsignorErrors(newErrors);
             return;
         }
         try {
-            if (manualConsignor.name && manualConsignor.address && manualConsignor.state) {
+            if (manualConsignor.name) {
                 // Filter out empty strings for optional fields to prevent MongoDB duplicate key errors
                 const processedConsignorData = {
                     ...manualConsignor,
+                    address: manualConsignor.address && manualConsignor.address.trim() !== '' ? manualConsignor.address : undefined,
+                    state: manualConsignor.state && manualConsignor.state.trim() !== '' ? manualConsignor.state : undefined,
                     gstin: manualConsignor.gstin && manualConsignor.gstin.trim() !== '' ? manualConsignor.gstin : undefined,
                     contactPerson: manualConsignor.contactPerson && manualConsignor.contactPerson.trim() !== '' ? manualConsignor.contactPerson : undefined,
                     contactPhone: manualConsignor.contactPhone && manualConsignor.contactPhone.trim() !== '' ? manualConsignor.contactPhone : undefined,
@@ -409,17 +453,21 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
     const handleAddManualConsignee = async () => {
         const newErrors: { [key: string]: string } = {};
         if (!manualConsignee.name) newErrors.name = 'Name is required';
-        if (!manualConsignee.address) newErrors.address = 'Address is required';
-        if (!manualConsignee.state) newErrors.state = 'State is required';
+        // PIN code is optional - only validate format if provided
+        if (manualConsignee.pin && !/^[1-9][0-9]{5}$/.test(manualConsignee.pin)) {
+            newErrors.pin = 'PIN code must be 6 digits starting with 1-9';
+        }
         if (Object.keys(newErrors).length > 0) {
             setManualConsigneeErrors(newErrors);
             return;
         }
         try {
-            if (manualConsignee.name && manualConsignee.address && manualConsignee.state) {
+            if (manualConsignee.name) {
                 // Filter out empty strings for optional fields to prevent MongoDB duplicate key errors
                 const processedConsigneeData = {
                     ...manualConsignee,
+                    address: manualConsignee.address && manualConsignee.address.trim() !== '' ? manualConsignee.address : undefined,
+                    state: manualConsignee.state && manualConsignee.state.trim() !== '' ? manualConsignee.state : undefined,
                     gstin: manualConsignee.gstin && manualConsignee.gstin.trim() !== '' ? manualConsignee.gstin : undefined,
                     contactPerson: manualConsignee.contactPerson && manualConsignee.contactPerson.trim() !== '' ? manualConsignee.contactPerson : undefined,
                     contactPhone: manualConsignee.contactPhone && manualConsignee.contactPhone.trim() !== '' ? manualConsignee.contactPhone : undefined,
@@ -526,7 +574,12 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
             // Handle LR number based on manual entry setting
             if (allowManualLr) {
                 // Manual entry enabled - only send lrNumber if user provided a valid value
-                if (!lrData.lrNumber || lrData.lrNumber <= 0) {
+                if (lrData.lrNumber && lrData.lrNumber > 0) {
+                    // Convert string to number if it's a string
+                    lrData.lrNumber = typeof lrData.lrNumber === 'string' 
+                        ? parseInt(lrData.lrNumber, 10) 
+                        : lrData.lrNumber;
+                } else {
                     delete lrData.lrNumber; // Let backend generate it
                 }
             } else {
@@ -632,9 +685,12 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                         ) : (
                                             <input
                                                 name="lrNumber"
-                                                type="text"
+                                                type="number"
                                                 value={lr.lrNumber || ''}
-                                                onChange={handleChange}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    updateFormData('lrNumber', value ? parseInt(value, 10) : '', 'number');
+                                                }}
                                                 placeholder="Enter consignment number or leave empty for auto-generation"
                                                 className="w-full px-3 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400 h-12"
                                             />
@@ -838,15 +894,58 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                             </div>
                             {showConsignorManual && (
-                                <div className="border border-gray-300 p-4 rounded-lg bg-gray-50 space-y-3 mt-4">
+                                <div className="border border-gray-300 p-4 rounded-lg bg-gray-50 space-y-4 mt-4">
                                     <h4 className="text-md font-medium text-gray-700">Manual Consignor Entry</h4>
-                                    <Input label="Name" name="name" value={manualConsignor.name || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.name} required />
-                                    <Textarea label="Address" name="address" value={manualConsignor.address || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.address} required />
-                                    <Select label="State" name="state" value={manualConsignor.state || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.state} required options={indianStates.map(s => ({ value: s, label: s }))} />
-                                    <Input label="GSTIN" name="gstin" value={manualConsignor.gstin || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.gstin} maxLength={15} />
-                                    <Input label="Contact Person" name="contactPerson" value={manualConsignor.contactPerson || ''} onChange={handleManualConsignorChange} />
-                                    <Input label="Contact Phone" name="contactPhone" value={manualConsignor.contactPhone || ''} onChange={handleManualConsignorChange} />
-                                    <Input label="Contact Email" name="contactEmail" value={manualConsignor.contactEmail || ''} onChange={handleManualConsignorChange} />
+                                    
+                                    {/* Required Fields */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                                        <h5 className="text-sm font-semibold text-blue-800">Required Information</h5>
+                                        <Input label="Name" name="name" value={manualConsignor.name || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.name} required />
+                                        
+                                        <PincodeInput
+                                            label="PIN Code"
+                                            name="pin"
+                                            value={manualConsignor.pin || ''}
+                                            onChange={handleManualConsignorChange}
+                                            onPincodeFound={handleConsignorPincodeFound}
+                                            onPincodeNotFound={handleConsignorPincodeNotFound}
+                                            error={manualConsignorErrors.pin}
+                                            helpText="Enter pincode to auto-fill city and state"
+                                        />
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <StateCityDropdown
+                                                label="City"
+                                                name="city"
+                                                value={manualConsignor.city || ''}
+                                                onChange={handleManualConsignorChange}
+                                                onCityChange={(city) => setManualConsignor(prev => ({ ...prev, city }))}
+                                                type="city"
+                                                selectedState={manualConsignor.state}
+                                                placeholder={manualConsignor.pin ? "Auto-filled from pincode" : "Enter city manually"}
+                                            />
+                                            <StateCityDropdown
+                                                label="State"
+                                                name="state"
+                                                value={manualConsignor.state || ''}
+                                                onChange={handleManualConsignorChange}
+                                                onStateChange={(state) => setManualConsignor(prev => ({ ...prev, state }))}
+                                                type="state"
+                                                placeholder={manualConsignor.pin ? "Auto-filled from pincode" : "Enter state manually"}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Optional Fields */}
+                                    <div className="space-y-3">
+                                        <h5 className="text-sm font-semibold text-gray-700">Optional Information</h5>
+                                        <Textarea label="Address" name="address" value={manualConsignor.address || ''} onChange={handleManualConsignorChange} placeholder="Enter address (optional)" />
+                                        <Input label="GSTIN" name="gstin" value={manualConsignor.gstin || ''} onChange={handleManualConsignorChange} error={manualConsignorErrors.gstin} maxLength={15} placeholder="Enter GSTIN (optional)" />
+                                        <Input label="Contact Person" name="contactPerson" value={manualConsignor.contactPerson || ''} onChange={handleManualConsignorChange} placeholder="Enter contact person (optional)" />
+                                        <Input label="Contact Phone" name="contactPhone" value={manualConsignor.contactPhone || ''} onChange={handleManualConsignorChange} placeholder="Enter contact phone (optional)" />
+                                        <Input label="Contact Email" name="contactEmail" value={manualConsignor.contactEmail || ''} onChange={handleManualConsignorChange} placeholder="Enter contact email (optional)" />
+                                    </div>
+                                    
                                     <Button type="button" onClick={handleAddManualConsignor} className="w-full">Add Consignor</Button>
                                 </div>
                             )}
@@ -923,15 +1022,58 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                             </div>
                             {showConsigneeManual && (
-                                <div className="border border-gray-300 p-4 rounded-lg bg-gray-50 space-y-3 mt-4">
+                                <div className="border border-gray-300 p-4 rounded-lg bg-gray-50 space-y-4 mt-4">
                                     <h4 className="text-md font-medium text-gray-700">Manual Consignee Entry</h4>
-                                    <Input label="Name" name="name" value={manualConsignee.name || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.name} required />
-                                    <Textarea label="Address" name="address" value={manualConsignee.address || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.address} required />
-                                    <Select label="State" name="state" value={manualConsignee.state || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.state} required options={indianStates.map(s => ({ value: s, label: s }))} />
-                                    <Input label="GSTIN" name="gstin" value={manualConsignee.gstin || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.gstin} maxLength={15} />
-                                    <Input label="Contact Person" name="contactPerson" value={manualConsignee.contactPerson || ''} onChange={handleManualConsigneeChange} />
-                                    <Input label="Contact Phone" name="contactPhone" value={manualConsignee.contactPhone || ''} onChange={handleManualConsigneeChange} />
-                                    <Input label="Contact Email" name="contactEmail" value={manualConsignee.contactEmail || ''} onChange={handleManualConsigneeChange} />
+                                    
+                                    {/* Required Fields */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                                        <h5 className="text-sm font-semibold text-blue-800">Required Information</h5>
+                                        <Input label="Name" name="name" value={manualConsignee.name || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.name} required />
+                                        
+                                        <PincodeInput
+                                            label="PIN Code"
+                                            name="pin"
+                                            value={manualConsignee.pin || ''}
+                                            onChange={handleManualConsigneeChange}
+                                            onPincodeFound={handleConsigneePincodeFound}
+                                            onPincodeNotFound={handleConsigneePincodeNotFound}
+                                            error={manualConsigneeErrors.pin}
+                                            helpText="Enter pincode to auto-fill city and state"
+                                        />
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <StateCityDropdown
+                                                label="City"
+                                                name="city"
+                                                value={manualConsignee.city || ''}
+                                                onChange={handleManualConsigneeChange}
+                                                onCityChange={(city) => setManualConsignee(prev => ({ ...prev, city }))}
+                                                type="city"
+                                                selectedState={manualConsignee.state}
+                                                placeholder={manualConsignee.pin ? "Auto-filled from pincode" : "Enter city manually"}
+                                            />
+                                            <StateCityDropdown
+                                                label="State"
+                                                name="state"
+                                                value={manualConsignee.state || ''}
+                                                onChange={handleManualConsigneeChange}
+                                                onStateChange={(state) => setManualConsignee(prev => ({ ...prev, state }))}
+                                                type="state"
+                                                placeholder={manualConsignee.pin ? "Auto-filled from pincode" : "Enter state manually"}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Optional Fields */}
+                                    <div className="space-y-3">
+                                        <h5 className="text-sm font-semibold text-gray-700">Optional Information</h5>
+                                        <Textarea label="Address" name="address" value={manualConsignee.address || ''} onChange={handleManualConsigneeChange} placeholder="Enter address (optional)" />
+                                        <Input label="GSTIN" name="gstin" value={manualConsignee.gstin || ''} onChange={handleManualConsigneeChange} error={manualConsigneeErrors.gstin} maxLength={15} placeholder="Enter GSTIN (optional)" />
+                                        <Input label="Contact Person" name="contactPerson" value={manualConsignee.contactPerson || ''} onChange={handleManualConsigneeChange} placeholder="Enter contact person (optional)" />
+                                        <Input label="Contact Phone" name="contactPhone" value={manualConsignee.contactPhone || ''} onChange={handleManualConsigneeChange} placeholder="Enter contact phone (optional)" />
+                                        <Input label="Contact Email" name="contactEmail" value={manualConsignee.contactEmail || ''} onChange={handleManualConsigneeChange} placeholder="Enter contact email (optional)" />
+                                    </div>
+                                    
                                     <Button type="button" onClick={handleAddManualConsignee} className="w-full">Add Consignee</Button>
                                 </div>
                             )}
@@ -1062,10 +1204,10 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                         value={lr.charges?.freight || 0}
                                         onValueChange={(value) => handleValueChange('charges.freight', value)}
                                         type="number"
-                                        required
+                                        required={false}
                                         min="0"
                                         step="1000"
-                                        label="Freight Charges (₹)"
+                                        label="Freight Charges (₹) - Optional"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -1253,6 +1395,18 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
+                                        Valid Upto (Optional)
+                                    </label>
+                                    <Input 
+                                        name="eWayBillValidUpto" 
+                                        type="date"
+                                        value={lr.eWayBillValidUpto || ''} 
+                                        onChange={handleChange} 
+                                        placeholder="Select validity date"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">
                                         Value of Goods (₹)
                                     </label>
                                     <Input 
@@ -1288,7 +1442,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
-                                        Reporting Date
+                                        Reporting Date (Optional)
                                     </label>
                                     <Input 
                                         name="reportingDate" 
@@ -1300,7 +1454,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                 </div>
                                 <div className="space-y-2">
                                     <label className="block text-sm font-medium text-gray-700">
-                                        Delivery Date
+                                        Delivery Date (Optional)
                                     </label>
                                     <Input 
                                         name="deliveryDate" 

@@ -6,8 +6,8 @@ export interface ICustomer extends Omit<ICustomerType, '_id'>, Document {}
 const CustomerSchema = new Schema({
   name: { type: String, required: true },
   tradeName: { type: String },
-  address: { type: String, required: true },
-  state: { type: String, required: true },
+  address: { type: String },
+  state: { type: String },
   gstin: { type: String, unique: true, sparse: true }, // Unique but allow null values
   contactPerson: { type: String },
   contactPhone: { type: String },

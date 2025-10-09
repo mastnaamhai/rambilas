@@ -93,7 +93,7 @@ export interface LorryReceipt {
     chargedWeight: number;
   }[];
   charges: {
-    freight: number;
+    freight?: number;
     aoc: number;
     hamali: number;
     bCh: number;
@@ -102,6 +102,7 @@ export interface LorryReceipt {
   };
   totalAmount: number;
   eWayBillNo: string;
+  eWayBillValidUpto?: string;
   valueGoods: number;
   gstPayableBy: GstPayableBy;
   riskBearer: RiskBearer;
@@ -146,6 +147,13 @@ export interface Invoice {
   // Auto-calculated freight fields
   isAutoFreightCalculated: boolean;
   invoiceFreightTotal: number;
+  // Separate freight charges fields
+  freightCharges?: {
+    amount: number;
+    paymentType: 'Paid' | 'To Pay' | 'Not Applicable';
+    transporterName?: string;
+    lrNumber?: string;
+  };
 }
 
 export interface CompanyInfo {
