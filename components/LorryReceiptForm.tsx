@@ -18,6 +18,7 @@ import { simpleNumberingService } from '../services/simpleNumberingService';
 import { useLorryReceiptFormState } from '../hooks/useLorryReceiptFormState';
 import { useFormValidation } from '../hooks/useFormValidation';
 import { fieldRules } from '../services/formValidation';
+import { formatVehicleNumber } from '../services/utils';
 
 import type { LorryReceipt, Customer, TruckHiringNote } from '../types';
 
@@ -104,7 +105,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
         'packages.0.chargedWeight': fieldRules.chargedWeight,
         'packages.0.count': { required: true, min: 1, message: 'Package count must be at least 1' },
         'packages.0.packingMethod': { required: true, message: 'Packing method is required' },
-        'charges.freight': fieldRules.freightRate,
+        'charges.freight': fieldRules.currencyAmount,
         'charges.aoc': { min: 0, message: 'AOC cannot be negative' },
         'charges.hamali': { min: 0, message: 'Hamali cannot be negative' },
         'charges.bCh': { min: 0, message: 'B.Ch cannot be negative' },
@@ -655,17 +656,25 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                     </div>
                                     
                                     <div className="space-y-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Vehicle No. <span className="text-red-500">*</span>
+                                        </label>
                                         <AutocompleteInput
                                             name="vehicleNumber" 
                                             value={lr.vehicleNumber || ''} 
-                                        onChange={handleChange} 
+                                            onChange={(e) => {
+                                                const formatted = formatVehicleNumber(e.target.value);
+                                                handleChange({
+                                                    ...e,
+                                                    target: { ...e.target, value: formatted }
+                                                });
+                                            }}
                                             required 
                                             error={errors.vehicleNumber}
                                             suggestions={getVehicleSuggestions()}
-                                            placeholder="e.g., MH-12-AB-1234"
-                                            helpText="Start typing to see suggestions from Truck Hiring Notes"
+                                            placeholder="e.g., MH12AB1234 or MH-12-AB-1234"
+                                            helpText="Enter vehicle number - will be auto-formatted. Start typing to see suggestions from Truck Hiring Notes"
                                             className="h-12"
-                                            label="Vehicle No."
                                         />
                                     </div>
                                 </div>
@@ -978,13 +987,15 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Packing Method <span className="text-red-500">*</span>
                                             </label>
-                                            <Select
+                                            <AutocompleteInput
                                                     name={`packages.${index}.packingMethod`}
                                                     value={pkg.packingMethod || ''}
                                                     onChange={handleChange}
-                                                options={commonPackingMethods.map(method => ({ value: method, label: method }))}
-                                                required
-                                                error={errors[`packages.${index}.packingMethod`]}
+                                                    suggestions={commonPackingMethods}
+                                                    placeholder="Select or type packing method"
+                                                    helpText="Select from list or type manually"
+                                                    required
+                                                    error={errors[`packages.${index}.packingMethod`]}
                                                 />
                                         </div>
                                         <div className="space-y-2">
@@ -1009,7 +1020,8 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                     value={pkg.actualWeight || 0} 
                                                     onChange={handleChange} 
                                                     required 
-                                                min="0.01"
+                                                min="0.00"
+                                                max="100000"
                                                 step="0.01"
                                                     error={errors[`packages.${index}.actualWeight`]}
                                                 />
@@ -1024,7 +1036,8 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                                     value={pkg.chargedWeight || 0} 
                                                     onChange={handleChange} 
                                                     required 
-                                                min="0.01"
+                                                min="0.00"
+                                                max="100000"
                                                 step="0.01"
                                                     error={errors[`packages.${index}.chargedWeight`]}
                                                 />
@@ -1051,7 +1064,7 @@ export const LorryReceiptForm: React.FC<LorryReceiptFormProps> = ({
                                         type="number"
                                         required
                                         min="0"
-                                        step="0.01"
+                                        step="1000"
                                         label="Freight Charges (₹)"
                                     />
                                 </div>

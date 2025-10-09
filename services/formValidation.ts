@@ -97,8 +97,8 @@ export const commonRules = {
         message: 'Invalid email address' 
     },
     phone: { 
-        pattern: /^[6-9]\d{9}$/, 
-        message: 'Invalid phone number' 
+        pattern: /^\d{10}$/, 
+        message: 'Phone number must be exactly 10 digits' 
     },
     gstin: { 
         pattern: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 
@@ -142,8 +142,8 @@ export const fieldRules = {
     
     // Contact fields
     contactPhone: { 
-        pattern: /^[6-9]\d{9}$/, 
-        message: 'Contact phone must be 10 digits starting with 6-9'
+        pattern: /^\d{10}$/, 
+        message: 'Contact phone must be exactly 10 digits'
     },
     contactEmail: { 
         pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, 
@@ -156,10 +156,15 @@ export const fieldRules = {
         min: 0.01, 
         message: 'Amount must be greater than 0'
     },
-    freightRate: { 
+    currencyAmount: { 
         required: true, 
         min: 0.01, 
-        message: 'Freight rate must be greater than 0'
+        message: 'Amount must be greater than 0'
+    },
+    freightRate: { 
+        required: true, 
+        min: 0.00, 
+        message: 'Freight rate must be greater than or equal to 0'
     },
     advanceAmount: { 
         min: 0, 
@@ -169,8 +174,9 @@ export const fieldRules = {
     // Vehicle fields
     vehicleNumber: { 
         required: true, 
-        pattern: /^[A-Z]{2}[-\s]?[0-9]{2}[-\s]?[A-Z]{1,2}[-\s]?[0-9]{4}$/i,
-        message: 'Invalid vehicle number format (e.g., MH-12-AB-1234)'
+        minLength: 8,
+        maxLength: 15,
+        message: 'Vehicle number must be between 8 and 15 characters'
     },
     vehicleCapacity: { 
         required: true, 
@@ -188,15 +194,15 @@ export const fieldRules = {
     },
     actualWeight: { 
         required: true, 
-        min: 0.01, 
-        max: 10000,
-        message: 'Weight must be between 0.01 and 10,000 kg'
+        min: 0.00, 
+        max: 100000,
+        message: 'Weight must be between 0.00 and 100,000 kg'
     },
     chargedWeight: { 
         required: true, 
-        min: 0.01, 
-        max: 10000,
-        message: 'Charged weight must be between 0.01 and 10,000 kg'
+        min: 0.00, 
+        max: 100000,
+        message: 'Charged weight must be between 0.00 and 100,000 kg'
     },
     
     // Date fields

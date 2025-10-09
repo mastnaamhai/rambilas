@@ -62,6 +62,44 @@ export const getCurrentDate = () => {
     return `${year}-${month}-${day}`;
 };
 
+/**
+ * Auto-formats vehicle number by removing spaces and hyphens, then adding proper formatting
+ * @param value Raw vehicle number input
+ * @returns Formatted vehicle number
+ */
+export const formatVehicleNumber = (value: string): string => {
+    if (!value) return '';
+    
+    // Remove all spaces, hyphens, and convert to uppercase
+    const cleaned = value.replace(/[\s-]/g, '').toUpperCase();
+    
+    // If it's too short or too long, return as is
+    if (cleaned.length < 4 || cleaned.length > 12) {
+        return cleaned;
+    }
+    
+    // Try to format as Indian vehicle number if it looks like one
+    // Pattern: 2 letters + 2 digits + 1-2 letters + 4 digits
+    const indianPattern = /^([A-Z]{2})(\d{2})([A-Z]{1,2})(\d{4})$/;
+    const match = cleaned.match(indianPattern);
+    
+    if (match) {
+        const [, state, district, series, number] = match;
+        return `${state}-${district}-${series}-${number}`;
+    }
+    
+    // If it doesn't match Indian pattern, try to format as: XX-XX-XXXX
+    if (cleaned.length >= 6) {
+        const firstPart = cleaned.substring(0, 2);
+        const secondPart = cleaned.substring(2, 4);
+        const thirdPart = cleaned.substring(4);
+        return `${firstPart}-${secondPart}-${thirdPart}`;
+    }
+    
+    // If it's too short, return as is
+    return cleaned;
+};
+
 // Function to fetch customer details from a GSTIN API
 // The API key should be configured in the environment variables or database
 const getGstApiKey = async (): Promise<string> => {

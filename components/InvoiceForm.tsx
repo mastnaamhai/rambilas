@@ -846,16 +846,16 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                 <div className="space-y-4">
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         <div className="space-y-2">
-                                                            <ValidatedInput
-                                                                fieldName="cgstAmount"
-                                                                validationRules={validationRules}
-                                                                value={invoice.cgstAmount || 0}
-                                                                onValueChange={(value) => handleValueChange('cgstAmount', value)}
-                                                                type="number"
-                                                                min="0"
-                                                                step="0.01"
-                                                                label="CGST Amount (₹)"
-                                                            />
+                                                                <ValidatedInput
+                                                                    fieldName="cgstAmount"
+                                                                    validationRules={validationRules}
+                                                                    value={invoice.cgstAmount || 0}
+                                                                    onValueChange={(value) => handleValueChange('cgstAmount', value)}
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="100"
+                                                                    label="CGST Amount (₹)"
+                                                                />
                                                         </div>
                                                         <div className="space-y-2">
                                                             <ValidatedInput
@@ -865,7 +865,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                                 onValueChange={(value) => handleValueChange('sgstAmount', value)}
                                                                 type="number"
                                                                 min="0"
-                                                                step="0.01"
+                                                                step="100"
                                                                 label="SGST Amount (₹)"
                                                             />
                                                         </div>
@@ -878,7 +878,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                                             onValueChange={(value) => handleValueChange('igstAmount', value)}
                                                             type="number"
                                                             min="0"
-                                                            step="0.01"
+                                                            step="100"
                                                             label="IGST Amount (₹)"
                                                         />
                                                     </div>
